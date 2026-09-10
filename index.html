@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Politique de confidentialité — Traverse</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 2.5rem 1.25rem 5rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: #1d1d1b;
+    background: #fff8ef;
+  }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .4rem; }
+  h2 { font-size: 1.25rem; margin: 2.4rem 0 .6rem; }
+  h3 { font-size: 1.02rem; margin: 1.6rem 0 .4rem; }
+  .maj { color: #6b6455; font-size: .95rem; margin: 0 0 2rem; }
+  ul { padding-left: 1.2rem; }
+  li { margin: .35rem 0; }
+  a { color: #b4562a; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .97rem; }
+  th, td { border: 1px solid #ddd2c2; padding: .55rem .6rem; text-align: left; vertical-align: top; }
+  th { background: rgba(0,0,0,.04); font-weight: 600; }
+  .wrap { overflow-x: auto; }
+  footer { margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid #ddd2c2; color: #6b6455; font-size: .95rem; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #f2ece2; background: #1d1d1b; }
+    .maj, footer { color: #a9a294; }
+    a { color: #e79b6d; }
+    th, td { border-color: #3a3a36; }
+    th { background: rgba(255,255,255,.05); }
+    footer { border-top-color: #3a3a36; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Politique de confidentialité de Traverse</h1>
+<p class="maj">Dernière mise à jour : 10 septembre 2026</p>
+
+<p>Traverse est une application mobile qui aide à préparer un voyage : vous indiquez une destination, des dates et vos envies, et l'application vous propose un programme jour par jour.</p>
+
+<p>Cette page explique quelles données Traverse utilise, pourquoi, et où elles vont. Le principe de l'application est simple : <strong>il n'y a pas de compte, et vos voyages restent sur votre téléphone.</strong></p>
+
+<h2>1. Aucun compte, aucune identification</h2>
+<p>Traverse ne demande ni inscription, ni adresse e-mail, ni mot de passe, ni numéro de téléphone. Vous n'avez pas de compte chez nous, et nous ne détenons aucun fichier de clients.</p>
+<p>Nous ne vous demandons ni votre nom, ni votre adresse, ni votre date de naissance. L'application ne demande pas non plus l'accès à votre position (GPS), à vos contacts, ni à votre agenda.</p>
+
+<h2>2. Ce qui reste sur votre téléphone</h2>
+<p>Les informations suivantes sont enregistrées <strong>uniquement dans la mémoire de votre iPhone</strong>, dans l'espace réservé à l'application. Elles ne sont envoyées à aucun serveur et nous n'y avons pas accès :</p>
+<ul>
+  <li>vos voyages : titre, destination, dates de début et de fin, nombre de voyageurs, image de couverture, voyages terminés ;</li>
+  <li>les programmes générés et les activités que vous avez cochées ou ajoutées vous-même ;</li>
+  <li>vos préférences de voyage : envies, rythme, budget, type de compagnons ;</li>
+  <li>vos réglages : langue choisie et thème clair ou sombre ;</li>
+  <li>le rappel de fin d'essai gratuit, s'il est programmé ;</li>
+  <li>les photos de destination trouvées en ligne, gardées en mémoire pour éviter de les redemander.</li>
+</ul>
+
+<h3>Vos photos</h3>
+<p>Si vous choisissez une photo de votre galerie comme couverture de voyage, l'application vous demande l'autorisation d'accéder à vos photos. La photo choisie <strong>reste sur votre téléphone</strong> : elle n'est ni copiée, ni envoyée, ni analysée. Traverse ne consulte pas le reste de votre galerie.</p>
+
+<h3>Les notifications</h3>
+<p>Si vous les acceptez, Traverse programme des rappels concernant votre période d'essai. Ces notifications sont <strong>entièrement locales</strong> : elles sont créées et déclenchées par votre téléphone. Aucun serveur ne vous envoie de notification, et aucun identifiant de notification n'est transmis.</p>
+
+<h2>3. Ce qui part vers un serveur</h2>
+<p>Pour écrire un programme adapté à votre destination, reconnaître une ville que vous tapez, ou trouver des photos d'une ville, l'application interroge un service en ligne hébergé chez <strong>Supabase</strong> (fonctions serveur exploitées pour le compte de Traverse).</p>
+
+<p>Voici exactement ce qui est transmis lors de ces demandes :</p>
+
+<div class="wrap">
+<table>
+  <thead>
+    <tr><th>Demande</th><th>Données envoyées</th><th>Pourquoi</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Écrire un programme de journée</td>
+      <td>La destination (ex. « Lisbonne, Portugal »), les envies retenues, le rythme, le budget, le type de compagnons, le nombre de voyageurs, la langue de l'application, les numéros de jours concernés, et la liste des lieux déjà proposés pour ce voyage.</td>
+      <td>Produire un programme cohérent, et éviter de proposer deux fois le même lieu.</td>
+    </tr>
+    <tr>
+      <td>Reconnaître une ville tapée</td>
+      <td>Le texte saisi dans le champ de recherche et la langue de l'application.</td>
+      <td>Retrouver le nom exact de la ville, son pays et son drapeau.</td>
+    </tr>
+    <tr>
+      <td>Trouver des photos d'une ville</td>
+      <td>Le nom de la ville, le pays et la langue de l'application.</td>
+      <td>Proposer de vraies photos de la destination comme image de couverture.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p><strong>Ce qui n'est jamais envoyé :</strong> aucun identifiant personnel ou d'appareil, aucun nom, aucune adresse e-mail, aucune photo de votre galerie, aucune position GPS, et pas non plus les dates de votre voyage ni le titre que vous lui donnez.</p>
+
+<p>Ces demandes ne sont associées à aucune personne. Nous ne pouvons pas savoir qui a demandé quoi : rien ne permet de relier une demande à un utilisateur, ni de relier deux demandes entre elles.</p>
+
+<h2>4. Les services tiers réellement utilisés</h2>
+
+<h3>Supabase — hébergement des fonctions serveur</h3>
+<p>Les trois demandes décrites ci-dessus sont traitées par des fonctions hébergées chez Supabase. Elles traitent la demande et renvoient la réponse : <strong>aucune base de données n'est utilisée et rien n'y est enregistré</strong>. Comme tout hébergeur, Supabase produit des journaux techniques temporaires (date de l'appel, adresse IP de l'appareil, code de réponse) qui servent uniquement au bon fonctionnement et à la sécurité du service.<br>
+<a href="https://supabase.com/privacy" target="_blank" rel="noopener">Politique de confidentialité de Supabase</a></p>
+
+<h3>OpenRouter — génération des programmes par intelligence artificielle</h3>
+<p>Nos fonctions serveur transmettent la demande (destination, envies, rythme, budget, compagnons, nombre de voyageurs, langue) à un modèle d'intelligence artificielle, via OpenRouter. Cette demande sert uniquement à produire la réponse. Le réglage de journalisation et d'entraînement du compte Traverse chez OpenRouter est désactivé : les demandes ne sont pas conservées pour entraîner un modèle. La demande ne contient aucune donnée permettant de vous identifier.<br>
+<a href="https://openrouter.ai/privacy" target="_blank" rel="noopener">Politique de confidentialité d'OpenRouter</a></p>
+
+<h3>OpenStreetMap — vérification des adresses</h3>
+<p>Nos fonctions serveur interrogent les services publics OpenStreetMap (Nominatim et Overpass) pour vérifier que les lieux proposés existent vraiment. Seul le nom de la ville et celui des lieux sont transmis. Ces appels partent de notre serveur, pas de votre téléphone.<br>
+<a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">Politique de confidentialité d'OpenStreetMap</a></p>
+
+<h3>Wikipedia et Wikimedia Commons — photos et illustrations</h3>
+<p>Les photos de destinations et d'activités proviennent de Wikipedia et Wikimedia Commons, avec mention de leur auteur et de leur licence. La recherche est effectuée par notre serveur ; les images elles-mêmes sont ensuite téléchargées par votre téléphone depuis Wikimedia.<br>
+<a href="https://foundation.wikimedia.org/wiki/Policy:Privacy_policy" target="_blank" rel="noopener">Politique de confidentialité de Wikimedia</a></p>
+
+<h3>Apple et RevenueCat — abonnement</h3>
+<p>L'abonnement Premium est vendu et encaissé par <strong>Apple</strong>, via l'App Store. Traverse ne voit jamais votre moyen de paiement, ni votre nom, ni votre identifiant Apple.</p>
+<p>La gestion de l'abonnement s'appuie sur <strong>RevenueCat</strong>, qui indique à l'application si l'abonnement est actif. Traverse utilise RevenueCat de façon <strong>anonyme</strong> : l'application ne lui transmet ni votre nom, ni votre adresse e-mail, ni aucun attribut vous concernant. RevenueCat attribue à votre installation un identifiant anonyme et reçoit, avec l'accord d'Apple, les informations techniques nécessaires à la validation de l'achat (produit acheté, dates de début et de renouvellement, pays de la boutique).<br>
+<a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">Politique de confidentialité de RevenueCat</a> — <a href="https://www.apple.com/legal/privacy/fr-ww/" target="_blank" rel="noopener">Politique de confidentialité d'Apple</a></p>
+
+<h3>Applications de navigation</h3>
+<p>Depuis une activité, vous pouvez ouvrir Plans, Google Maps, Waze ou Uber pour vous y rendre. Traverse transmet alors uniquement <strong>l'adresse de destination</strong> à l'application choisie, en ouvrant un lien. Ce que ces applications font ensuite relève de leur propre politique de confidentialité.</p>
+
+<h3>Aucune mesure d'audience</h3>
+<p>Traverse ne contient <strong>aucun outil de statistiques, de publicité, de traçage ou de profilage</strong>. Aucune donnée n'est vendue, louée ou partagée à des fins commerciales ou publicitaires.</p>
+
+<h2>5. Durée de conservation</h2>
+<ul>
+  <li><strong>Sur votre téléphone :</strong> vos voyages et vos réglages sont conservés aussi longtemps que vous le souhaitez. Ils sont effacés lorsque vous supprimez le voyage concerné, ou définitivement lorsque vous désinstallez l'application.</li>
+  <li><strong>Sur nos serveurs :</strong> rien n'est conservé. Les demandes sont traitées puis oubliées ; aucune base de données n'enregistre vos destinations ni vos programmes.</li>
+  <li><strong>Journaux techniques de l'hébergeur :</strong> conservés quelques jours au maximum par Supabase, puis supprimés automatiquement.</li>
+  <li><strong>Abonnement :</strong> les informations liées à votre achat sont conservées par Apple et RevenueCat selon leurs propres politiques, le temps nécessaire à la gestion de l'abonnement et aux obligations comptables.</li>
+</ul>
+
+<h2>6. Vos droits</h2>
+<p>Comme Traverse ne détient aucune donnée vous concernant sur ses serveurs, il n'y a rien à consulter, corriger ou supprimer chez nous : <strong>vous supprimez vos données vous-même</strong>, en effaçant un voyage dans l'application ou en la désinstallant.</p>
+<p>Conformément au Règlement général sur la protection des données (RGPD), vous disposez néanmoins d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition. Pour l'exercer, ou pour toute question, écrivez-nous à l'adresse indiquée ci-dessous. Vous pouvez également introduire une réclamation auprès de la CNIL (<a href="https://www.cnil.fr" target="_blank" rel="noopener">cnil.fr</a>).</p>
+<p>Pour vos achats, adressez-vous à Apple (gestion et remboursement des abonnements de l'App Store).</p>
+
+<h2>7. Les enfants</h2>
+<p>Traverse n'est pas destinée aux enfants et ne collecte sciemment aucune donnée les concernant.</p>
+
+<h2>8. Modifications</h2>
+<p>Cette politique peut être mise à jour si le fonctionnement de l'application évolue. La date de dernière mise à jour figure en haut de cette page.</p>
+
+<h2>9. Contact</h2>
+<p>Éditeur et responsable du traitement : <strong>Traverse</strong><br>
+Courriel : <a href="mailto:contact.traverseapp@gmail.com">contact.traverseapp@gmail.com</a></p>
+
+<footer>Traverse — Politique de confidentialité</footer>
+
+</body>
+</html>
