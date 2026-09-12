@@ -41,7 +41,7 @@
 <body>
 
 <h1>Politique de confidentialité de Traverse</h1>
-<p class="maj">Dernière mise à jour : 10 septembre 2026</p>
+<p class="maj">Dernière mise à jour : 12 septembre 2026</p>
 
 <p>Traverse est une application mobile qui aide à préparer un voyage : vous indiquez une destination, des dates et vos envies, et l'application vous propose un programme jour par jour.</p>
 
@@ -112,12 +112,12 @@
 <p>Nos fonctions serveur transmettent la demande (destination, envies, rythme, budget, compagnons, nombre de voyageurs, langue) à un modèle d'intelligence artificielle, via OpenRouter. Cette demande sert uniquement à produire la réponse. Le réglage de journalisation et d'entraînement du compte Traverse chez OpenRouter est désactivé : les demandes ne sont pas conservées pour entraîner un modèle. La demande ne contient aucune donnée permettant de vous identifier.<br>
 <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener">Politique de confidentialité d'OpenRouter</a></p>
 
-<h3>OpenStreetMap — vérification des adresses</h3>
-<p>Nos fonctions serveur interrogent les services publics OpenStreetMap (Nominatim et Overpass) pour vérifier que les lieux proposés existent vraiment. Seul le nom de la ville et celui des lieux sont transmis. Ces appels partent de notre serveur, pas de votre téléphone.<br>
-<a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">Politique de confidentialité d'OpenStreetMap</a></p>
+<h3>Geoapify — vérification des adresses, à partir des données OpenStreetMap</h3>
+<p>Nos fonctions serveur interrogent <strong>Geoapify</strong>, un service européen qui met à disposition les données cartographiques d'<strong>OpenStreetMap</strong>. Il sert à deux choses : retrouver la ville demandée, et vérifier que les lieux proposés par l'intelligence artificielle existent vraiment. Sont transmis le nom de la ville, ses coordonnées et le nom des lieux — <strong>jamais votre position, jamais rien qui vous identifie</strong>. Ces appels partent de notre serveur et non de votre téléphone : Geoapify voit l'adresse IP de notre serveur, pas la vôtre. Geoapify indique conserver les informations d'une requête réussie vingt-quatre heures au plus.<br>
+<a href="https://geoapify.com/privacy-policy/" target="_blank" rel="noopener">Politique de confidentialité de Geoapify</a> — <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">Politique de confidentialité d'OpenStreetMap</a></p>
 
-<h3>Wikipedia et Wikimedia Commons — photos et illustrations</h3>
-<p>Les photos de destinations et d'activités proviennent de Wikipedia et Wikimedia Commons, avec mention de leur auteur et de leur licence. La recherche est effectuée par notre serveur ; les images elles-mêmes sont ensuite téléchargées par votre téléphone depuis Wikimedia.<br>
+<h3>Wikipedia, Wikidata et Wikimedia Commons — photos et notoriété des lieux</h3>
+<p>Les photos de destinations et d'activités proviennent de Wikipedia et Wikimedia Commons, avec mention de leur auteur et de leur licence. Notre serveur interroge également <strong>Wikidata</strong> et Wikipedia pour savoir quels lieux d'une ville sont les plus connus, et les proposer en premier. Seuls des noms de lieux sont transmis. La recherche est effectuée par notre serveur ; les images elles-mêmes sont ensuite téléchargées par votre téléphone depuis Wikimedia.<br>
 <a href="https://foundation.wikimedia.org/wiki/Policy:Privacy_policy" target="_blank" rel="noopener">Politique de confidentialité de Wikimedia</a></p>
 
 <h3>Apple et RevenueCat — abonnement</h3>
@@ -140,7 +140,7 @@
 </ul>
 
 <h2>6. Transferts hors de l'Union européenne</h2>
-<p>Les fonctions serveur de Traverse sont hébergées en Irlande, dans l'Union européenne. Certains des services qu'elles utilisent sont en revanche établis aux États-Unis : c'est le cas d'OpenRouter (génération des programmes), de RevenueCat (gestion de l'abonnement) et de la Wikimedia Foundation (photos). Les données transmises à ces services sont celles décrites plus haut : elles ne comportent aucune information permettant de vous identifier. Ces transferts s'effectuent dans le cadre des garanties prévues par le RGPD, notamment les clauses contractuelles types de la Commission européenne.</p>
+<p>Les fonctions serveur de Traverse sont hébergées en Irlande, dans l'Union européenne. Certains des services qu'elles utilisent sont en revanche établis aux États-Unis : c'est le cas d'OpenRouter (génération des programmes), de RevenueCat (gestion de l'abonnement) et de la Wikimedia Foundation (photos). Geoapify (vérification des adresses), lui, est établi dans l'Union européenne. Les données transmises à ces services sont celles décrites plus haut : elles ne comportent aucune information permettant de vous identifier. Ces transferts s'effectuent dans le cadre des garanties prévues par le RGPD, notamment les clauses contractuelles types de la Commission européenne.</p>
 
 <h2>7. Vos droits</h2>
 <p>Comme Traverse ne détient aucune donnée vous concernant sur ses serveurs, il n'y a rien à consulter, corriger ou supprimer chez nous : <strong>vous supprimez vos données vous-même</strong>, en effaçant un voyage dans l'application ou en la désinstallant.</p>
