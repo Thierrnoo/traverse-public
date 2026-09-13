@@ -41,7 +41,7 @@
 <body>
 
 <h1>Politique de confidentialité de Traverse</h1>
-<p class="maj">Dernière mise à jour : 12 septembre 2026</p>
+<p class="maj">Dernière mise à jour : 13 septembre 2026</p>
 
 <p>Traverse est une application mobile qui aide à préparer un voyage : vous indiquez une destination, des dates et vos envies, et l'application vous propose un programme jour par jour.</p>
 
@@ -69,7 +69,7 @@
 <p>Si vous les acceptez, Traverse programme des rappels concernant votre période d'essai. Ces notifications sont <strong>entièrement locales</strong> : elles sont créées et déclenchées par votre téléphone. Aucun serveur ne vous envoie de notification, et aucun identifiant de notification n'est transmis.</p>
 
 <h2>3. Ce qui part vers un serveur</h2>
-<p>Pour écrire un programme adapté à votre destination, reconnaître une ville que vous tapez, ou trouver des photos d'une ville, l'application interroge un service en ligne hébergé chez <strong>Supabase</strong> (fonctions serveur exploitées pour le compte de Traverse).</p>
+<p>Pour écrire un programme adapté à votre destination, reconnaître une ville que vous tapez, trouver un lieu que vous ajoutez vous-même, ou trouver des photos, l'application interroge un service en ligne hébergé chez <strong>Supabase</strong> (fonctions serveur exploitées pour le compte de Traverse).</p>
 
 <p>Voici exactement ce qui est transmis lors de ces demandes :</p>
 
@@ -81,13 +81,18 @@
   <tbody>
     <tr>
       <td>Écrire un programme de journée</td>
-      <td>La destination (ex. « Lisbonne, Portugal »), les envies retenues, le rythme, le budget, le type de compagnons, le nombre de voyageurs, la langue de l'application, les numéros de jours concernés, et la liste des lieux déjà proposés pour ce voyage.</td>
-      <td>Produire un programme cohérent, et éviter de proposer deux fois le même lieu.</td>
+      <td>La destination (ex. « Lisbonne, Portugal »), la date de départ, les envies retenues, le rythme, le budget, le type de compagnons, le nombre de voyageurs, la langue de l'application, les numéros de jours concernés, et la liste des lieux et des photos déjà proposés pour ce voyage.</td>
+      <td>Produire un programme cohérent, adapté à la saison et aux événements de vos dates, et éviter de proposer deux fois le même lieu ou la même photo.</td>
     </tr>
     <tr>
       <td>Reconnaître une ville tapée</td>
       <td>Le texte saisi dans le champ de recherche et la langue de l'application.</td>
-      <td>Retrouver le nom exact de la ville, son pays et son drapeau.</td>
+      <td>Proposer des villes pendant la frappe, et retrouver le nom exact de la ville, son pays et son drapeau.</td>
+    </tr>
+    <tr>
+      <td>Ajouter une activité vous-même</td>
+      <td>Le texte saisi dans le champ de recherche, la ville du voyage et la langue de l'application ; puis, quand vous choisissez une proposition, le nom et la position de ce lieu.</td>
+      <td>Proposer les lieux correspondants dans la ville, puis trouver une vraie photo ou le logo de ce lieu.</td>
     </tr>
     <tr>
       <td>Trouver des photos d'une ville</td>
@@ -98,27 +103,31 @@
 </table>
 </div>
 
-<p><strong>Ce qui n'est jamais envoyé :</strong> aucun identifiant personnel ou d'appareil, aucun nom, aucune adresse e-mail, aucune photo de votre galerie, aucune position GPS, et pas non plus les dates de votre voyage ni le titre que vous lui donnez.</p>
+<p><strong>Ce qui n'est jamais envoyé :</strong> aucun identifiant personnel ou d'appareil, aucun nom, aucune adresse e-mail, aucune photo de votre galerie, aucune position GPS, ni le titre que vous donnez à votre voyage. La seule position qui part est celle d'un lieu que vous avez choisi dans la liste — un magasin, un restaurant — jamais la vôtre.</p>
 
 <p>Ces demandes ne sont associées à aucune personne. Nous ne pouvons pas savoir qui a demandé quoi : rien ne permet de relier une demande à un utilisateur, ni de relier deux demandes entre elles.</p>
 
 <h2>4. Les services tiers réellement utilisés</h2>
 
 <h3>Supabase — hébergement des fonctions serveur</h3>
-<p>Les trois demandes décrites ci-dessus sont traitées par des fonctions hébergées chez Supabase. Elles traitent la demande et renvoient la réponse : <strong>aucune base de données n'est utilisée et rien n'y est enregistré</strong>. Comme tout hébergeur, Supabase produit des journaux techniques temporaires (date de l'appel, adresse IP de l'appareil, code de réponse) qui servent uniquement au bon fonctionnement et à la sécurité du service.<br>
+<p>Les demandes décrites ci-dessus sont traitées par des fonctions hébergées chez Supabase. Elles traitent la demande et renvoient la réponse. Pour aller plus vite et solliciter moins les services extérieurs, Supabase garde aussi des <strong>informations sur les lieux, jamais sur les personnes</strong> : la carte des lieux d'une ville (pendant une semaine), l'auteur et la licence des photos déjà utilisées, et une copie des photos de rue retenues, dont l'adresse d'origine expire. <strong>Aucune de ces données ne concerne un utilisateur</strong> : ni vos destinations, ni vos programmes, ni vos préférences ne sont enregistrés. Les photos sont téléchargées par votre téléphone depuis ce stockage ou depuis Wikimedia. Comme tout hébergeur, Supabase produit des journaux techniques temporaires (date de l'appel, adresse IP de l'appareil, code de réponse) qui servent uniquement au bon fonctionnement et à la sécurité du service.<br>
 <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Politique de confidentialité de Supabase</a></p>
 
-<h3>OpenRouter — génération des programmes par intelligence artificielle</h3>
-<p>Nos fonctions serveur transmettent la demande (destination, envies, rythme, budget, compagnons, nombre de voyageurs, langue) à un modèle d'intelligence artificielle, via OpenRouter. Cette demande sert uniquement à produire la réponse. Le réglage de journalisation et d'entraînement du compte Traverse chez OpenRouter est désactivé : les demandes ne sont pas conservées pour entraîner un modèle. La demande ne contient aucune donnée permettant de vous identifier.<br>
+<h3>OpenRouter — intelligence artificielle</h3>
+<p>Nos fonctions serveur transmettent la demande (destination, date de départ, envies, rythme, budget, compagnons, nombre de voyageurs, langue) à un modèle d'intelligence artificielle, via OpenRouter. Cette demande sert uniquement à produire la réponse. Les mêmes modèles servent aussi à des tâches qui ne portent sur aucune donnée vous concernant : choisir les lieux emblématiques d'une ville pour ses photos de couverture, et regarder les photos de rue d'un lieu pour écarter celles qui sont floues ou peu engageantes. Le réglage de journalisation et d'entraînement du compte Traverse chez OpenRouter est désactivé : les demandes ne sont pas conservées pour entraîner un modèle. La demande ne contient aucune donnée permettant de vous identifier.<br>
 <a href="https://openrouter.ai/privacy" target="_blank" rel="noopener">Politique de confidentialité d'OpenRouter</a></p>
 
 <h3>Geoapify — vérification des adresses, à partir des données OpenStreetMap</h3>
-<p>Nos fonctions serveur interrogent <strong>Geoapify</strong>, un service européen qui met à disposition les données cartographiques d'<strong>OpenStreetMap</strong>. Il sert à deux choses : retrouver la ville demandée, et vérifier que les lieux proposés par l'intelligence artificielle existent vraiment. Sont transmis le nom de la ville, ses coordonnées et le nom des lieux — <strong>jamais votre position, jamais rien qui vous identifie</strong>. Ces appels partent de notre serveur et non de votre téléphone : Geoapify voit l'adresse IP de notre serveur, pas la vôtre. Geoapify indique conserver les informations d'une requête réussie vingt-quatre heures au plus.<br>
+<p>Nos fonctions serveur interrogent <strong>Geoapify</strong>, un service européen qui met à disposition les données cartographiques d'<strong>OpenStreetMap</strong>. Il sert à retrouver la ville demandée, à proposer des villes et des lieux pendant que vous tapez, à vérifier que les lieux proposés par l'intelligence artificielle existent vraiment, et à connaître la marque d'un magasin choisi pour afficher son logo. Sont transmis le texte tapé, le nom de la ville, ses coordonnées, le nom et la position des lieux — <strong>jamais votre position, jamais rien qui vous identifie</strong>. Ces appels partent de notre serveur et non de votre téléphone : Geoapify voit l'adresse IP de notre serveur, pas la vôtre. Geoapify indique conserver les informations d'une requête réussie vingt-quatre heures au plus.<br>
 <a href="https://geoapify.com/privacy-policy/" target="_blank" rel="noopener">Politique de confidentialité de Geoapify</a> — <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">Politique de confidentialité d'OpenStreetMap</a></p>
 
 <h3>Wikipedia, Wikidata et Wikimedia Commons — photos et notoriété des lieux</h3>
-<p>Les photos de destinations et d'activités proviennent de Wikipedia et Wikimedia Commons, avec mention de leur auteur et de leur licence. Notre serveur interroge également <strong>Wikidata</strong> et Wikipedia pour savoir quels lieux d'une ville sont les plus connus, et les proposer en premier. Seuls des noms de lieux sont transmis. La recherche est effectuée par notre serveur ; les images elles-mêmes sont ensuite téléchargées par votre téléphone depuis Wikimedia.<br>
+<p>Les photos de destinations et d'activités proviennent de Wikipedia et Wikimedia Commons, avec mention de leur auteur et de leur licence. Notre serveur interroge également <strong>Wikidata</strong> et Wikipedia pour savoir quels lieux d'une ville sont les plus connus, et les proposer en premier. Seuls des noms de lieux, leurs coordonnées et les fiches des marques sont transmis. La recherche est effectuée par notre serveur ; les images elles-mêmes sont ensuite téléchargées par votre téléphone depuis Wikimedia.<br>
 <a href="https://foundation.wikimedia.org/wiki/Policy:Privacy_policy" target="_blank" rel="noopener">Politique de confidentialité de Wikimedia</a></p>
+
+<h3>Mapillary et Panoramax — photos de rue des restaurants et des boutiques</h3>
+<p>Pour montrer la devanture d'un restaurant, d'un bar ou d'une boutique, notre serveur cherche des photos prises dans la rue, sous licence libre, chez <strong>Mapillary</strong> (service de Meta Platforms) et chez <strong>Panoramax</strong> (projet ouvert porté par l'IGN et OpenStreetMap France). Seules les <strong>coordonnées du lieu</strong> sont transmises, depuis notre serveur : jamais votre position, jamais rien qui vous identifie. La photo retenue est copiée sur notre stockage et affichée avec le nom de son auteur et sa licence.<br>
+<a href="https://www.mapillary.com/privacy" target="_blank" rel="noopener">Politique de confidentialité de Mapillary</a> — <a href="https://panoramax.fr/mentions-legales" target="_blank" rel="noopener">Mentions de Panoramax</a></p>
 
 <h3>Apple et RevenueCat — abonnement</h3>
 <p>L'abonnement Premium est vendu et encaissé par <strong>Apple</strong>, via l'App Store. Traverse ne voit jamais votre moyen de paiement, ni votre nom, ni votre identifiant Apple.</p>
@@ -134,13 +143,13 @@
 <h2>5. Durée de conservation</h2>
 <ul>
   <li><strong>Sur votre téléphone :</strong> vos voyages et vos réglages sont conservés aussi longtemps que vous le souhaitez. Ils sont effacés lorsque vous supprimez le voyage concerné, ou définitivement lorsque vous désinstallez l'application.</li>
-  <li><strong>Sur nos serveurs :</strong> rien n'est conservé. Les demandes sont traitées puis oubliées ; aucune base de données n'enregistre vos destinations ni vos programmes.</li>
+  <li><strong>Sur nos serveurs :</strong> rien de ce qui vous concerne n'est conservé. Les demandes sont traitées puis oubliées ; aucune base de données n'enregistre vos destinations ni vos programmes. Seules des informations sur les lieux sont gardées : la carte d'une ville une semaine, les crédits et copies des photos tant qu'elles servent.</li>
   <li><strong>Journaux techniques de l'hébergeur :</strong> conservés quelques jours au maximum par Supabase, puis supprimés automatiquement.</li>
   <li><strong>Abonnement :</strong> les informations liées à votre achat sont conservées par Apple et RevenueCat selon leurs propres politiques, le temps nécessaire à la gestion de l'abonnement et aux obligations comptables.</li>
 </ul>
 
 <h2>6. Transferts hors de l'Union européenne</h2>
-<p>Les fonctions serveur de Traverse sont hébergées en Irlande, dans l'Union européenne. Certains des services qu'elles utilisent sont en revanche établis aux États-Unis : c'est le cas d'OpenRouter (génération des programmes), de RevenueCat (gestion de l'abonnement) et de la Wikimedia Foundation (photos). Geoapify (vérification des adresses), lui, est établi dans l'Union européenne. Les données transmises à ces services sont celles décrites plus haut : elles ne comportent aucune information permettant de vous identifier. Ces transferts s'effectuent dans le cadre des garanties prévues par le RGPD, notamment les clauses contractuelles types de la Commission européenne.</p>
+<p>Les fonctions serveur de Traverse sont hébergées en Irlande, dans l'Union européenne. Certains des services qu'elles utilisent sont en revanche établis aux États-Unis : c'est le cas d'OpenRouter (intelligence artificielle), de RevenueCat (gestion de l'abonnement), de la Wikimedia Foundation (photos) et de Meta Platforms (Mapillary, photos de rue). Geoapify (lieux et adresses) et Panoramax (photos de rue), eux, sont établis dans l'Union européenne. Les données transmises à ces services sont celles décrites plus haut : elles ne comportent aucune information permettant de vous identifier. Ces transferts s'effectuent dans le cadre des garanties prévues par le RGPD, notamment les clauses contractuelles types de la Commission européenne.</p>
 
 <h2>7. Vos droits</h2>
 <p>Comme Traverse ne détient aucune donnée vous concernant sur ses serveurs, il n'y a rien à consulter, corriger ou supprimer chez nous : <strong>vous supprimez vos données vous-même</strong>, en effaçant un voyage dans l'application ou en la désinstallant.</p>
