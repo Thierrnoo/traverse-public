@@ -13,9 +13,9 @@
 <link rel="apple-touch-icon" href="images/traverse-icone.png">
 <!--
   Page d'arrivée du lien de la bio TikTok (@escapade.express).
-  Le navigateur intégré de TikTok refuse d'ouvrir l'App Store : dans TikTok, le bouton essaie d'abord
-  d'ouvrir le lien dans Safari (adresse « x-safari-https:// », iOS 17 et plus) ; si rien ne se passe,
-  la page montre en grand comment l'ouvrir dans le navigateur (••• en haut à droite).
+  Le navigateur intégré de TikTok refuse d'ouvrir l'App Store et Safari : dans TikTok, la page montre
+  en grand comment l'ouvrir dans le navigateur (••• en haut à droite) ; arrivée dans Safari, elle
+  ouvre l'App Store toute seule.
   Aucun cookie, aucun outil de mesure : seul le lien de campagne App Store (ct=tiktok-bio) compte les visites.
 -->
 <style>
@@ -154,27 +154,28 @@
 (function () {
   var ua = navigator.userAgent || '';
   var dansTikTok = /BytedanceWebview|musical_ly|TikTok|trill_/i.test(ua);
-  var iOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var lien = document.getElementById('telecharger').getAttribute('href');
   if (/Android/i.test(ua)) document.documentElement.classList.add('android');
-  if (!dansTikTok) return;
-  document.documentElement.classList.add('integre');
 
+  // Arrivé dans Safari par « ••• > Ouvrir dans le navigateur » : l'App Store s'ouvre tout seul.
+  if (!dansTikTok) {
+    if (/[?&]ouvrir=1/.test(location.search)) window.location.replace(lien);
+    return;
+  }
+
+  // Dans TikTok : l'App Store est bloqué (testé le 28 sept. 2026 sur son iPhone, l'ouverture directe de
+  // Safari aussi). L'adresse de la page prend « ?ouvrir=1 », pour que Safari, ouvert par les •••,
+  // file droit à l'App Store ; le bouton fait clignoter le bandeau qui montre les •••.
+  document.documentElement.classList.add('integre');
+  try { history.replaceState(null, '', location.pathname + '?ouvrir=1'); } catch (err) {}
   var guide = document.getElementById('guide');
   function insister() {
     guide.classList.remove('insiste'); void guide.offsetWidth; guide.classList.add('insiste');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  // Dans TikTok sur iPhone : essayer d'ouvrir le lien dans Safari ; si la page est toujours là
-  // après un instant, c'est que TikTok a bloqué : on montre le bandeau.
   var boutons = document.querySelectorAll('#telecharger, [data-appstore]');
   for (var i = 0; i < boutons.length; i++) {
-    boutons[i].addEventListener('click', function (e) {
-      if (!iOS) return;
-      e.preventDefault();
-      var lien = this.getAttribute('href');
-      try { window.location.href = 'x-safari-' + lien; } catch (err) {}
-      setTimeout(function () { if (document.visibilityState === 'visible') insister(); }, 1200);
-    });
+    boutons[i].addEventListener('click', function (e) { e.preventDefault(); insister(); });
   }
 })();
 </script>
