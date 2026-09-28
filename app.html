@@ -16,7 +16,8 @@
   Le navigateur intégré de TikTok refuse d'ouvrir l'App Store et Safari : dans TikTok, la page montre
   en grand comment l'ouvrir dans le navigateur (••• en haut à droite) ; arrivée dans Safari, elle
   ouvre l'App Store toute seule.
-  Aucun cookie, aucun outil de mesure : seul le lien de campagne App Store (ct=tiktok-bio) compte les visites.
+  Aucun cookie : la page compte ses visites de façon anonyme (tableau de bord stats.html), et le lien de
+  campagne App Store (ct=tiktok-bio) compte les téléchargements.
 -->
 <style>
   :root {
@@ -155,18 +156,47 @@
   var ua = navigator.userAgent || '';
   var dansTikTok = /BytedanceWebview|musical_ly|TikTok|trill_/i.test(ua);
   var lien = document.getElementById('telecharger').getAttribute('href');
+  var boutons = document.querySelectorAll('#telecharger, [data-appstore]');
   if (/Android/i.test(ua)) document.documentElement.classList.add('android');
+
+  // Mesure d'audience anonyme (tableau de bord traverse-app.fr/stats) : le type d'événement, l'app où la
+  // page s'ouvre et le type d'appareil, rien d'autre. Pas de cookie, pas d'identifiant ; la base ne garde
+  // pas l'adresse IP. Table visites_lien_bio de Supabase, fonction noter_visite_lien_bio.
+  var navigateur = dansTikTok ? 'tiktok' : /Instagram|FBAN|FBAV/i.test(ua) ? 'instagram' : 'autre';
+  var appareil = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    ? 'iphone' : /Android/i.test(ua) ? 'android' : 'ordinateur';
+  function noter(evenement) {
+    try {
+      return fetch('https://yosancauakpbaxhbsjpn.supabase.co/rest/v1/rpc/noter_visite_lien_bio', {
+        method: 'POST',
+        headers: { apikey: 'sb_publishable_jkKmMsynYkz35e0ACQouZA_6jQERGod', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ e: evenement, n: navigateur, a: appareil })
+      }).catch(function () {});
+    } catch (err) { return Promise.resolve(); }
+  }
+  // Avant de quitter la page : laisser partir le comptage, au plus 0,7 s.
+  function puisAller(evenement, adresse, remplacer) {
+    var parti = false;
+    function aller() { if (parti) return; parti = true; if (remplacer) window.location.replace(adresse); else window.location.href = adresse; }
+    noter(evenement).then(aller);
+    setTimeout(aller, 700);
+  }
 
   // Le lien de la bio TikTok est « app?telecharger ». TikTok bloque l'App Store (et l'ouverture directe
   // de Safari, testé le 28 sept. 2026 sur son iPhone) ; « ••• > Ouvrir dans le navigateur » rouvre ce
   // même lien dans Safari, et là l'App Store s'ouvre tout seul.
   var telecharger = /[?&](telecharger|ouvrir=1)(&|=|$)/.test(location.search);
   if (!dansTikTok) {
-    if (telecharger) window.location.replace(lien);
+    if (telecharger) { puisAller('safari', lien, true); return; }
+    noter('page');
+    for (var j = 0; j < boutons.length; j++) {
+      boutons[j].addEventListener('click', function (e) { e.preventDefault(); puisAller('bouton', this.getAttribute('href'), false); });
+    }
     return;
   }
 
   // Dans TikTok : le bandeau montre les ••• ; le bouton le fait clignoter.
+  noter('page');
   document.documentElement.classList.add('integre');
   try { if (!telecharger) history.replaceState(null, '', location.pathname + '?telecharger'); } catch (err) {}
   var guide = document.getElementById('guide');
@@ -174,9 +204,8 @@
     guide.classList.remove('insiste'); void guide.offsetWidth; guide.classList.add('insiste');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  var boutons = document.querySelectorAll('#telecharger, [data-appstore]');
   for (var i = 0; i < boutons.length; i++) {
-    boutons[i].addEventListener('click', function (e) { e.preventDefault(); insister(); });
+    boutons[i].addEventListener('click', function (e) { e.preventDefault(); insister(); noter('bouton'); });
   }
 })();
 </script>

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0e0e0d">
+<title>Lien de la bio — statistiques</title>
+<link rel="icon" href="images/traverse-icone.png">
+<link rel="apple-touch-icon" href="images/traverse-icone.png">
+<!--
+  Tableau de bord du lien de la bio TikTok (traverse-app.fr/app), pour Thierno. Sombre et minimaliste
+  (sa demande), avec une flèche verte quand un chiffre monte et rouge quand il baisse, par rapport à la
+  période précédente de même durée.
+  Les chiffres viennent de la fonction Supabase stats_lien_bio (90 derniers jours), qui ne répond qu'avec
+  la bonne clé : la clé est dans l'adresse après le # (jamais envoyée au site), puis gardée dans ce navigateur.
+  Rien de personnel : des totaux par jour, par heure, par app et par type d'appareil.
+  Couleurs des séries : palette de référence validée (bleu / orange) sur le fond #161615.
+-->
+<style>
+  :root {
+    color-scheme: dark;
+    --fond: #0e0e0d; --carte: #161615; --trait: #232321; --grille: #242422;
+    --encre: #f2ece2; --gris: #8f887c;
+    --s1: #3987e5; --s2: #d95926;
+    --hausse: #3ecf6e; --baisse: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--fond); color: var(--encre);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.45; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 52rem; margin: 0 auto; padding: max(1.4rem, env(safe-area-inset-top)) 1rem 3rem; }
+
+  header { display: flex; align-items: center; gap: .75rem; }
+  header img { width: 36px; height: 36px; border-radius: 9px; }
+  header h1 { font-size: 1.05rem; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+  header p { margin: 0; color: var(--gris); font-size: .8rem; }
+  .icone {
+    margin-left: auto; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--carte); border: 1px solid var(--trait); color: var(--encre); cursor: pointer; padding: 0;
+  }
+  .icone svg { width: 17px; height: 17px; }
+  .icone.tourne svg { animation: tourne .8s linear infinite; }
+  @keyframes tourne { to { transform: rotate(360deg); } }
+
+  .filtres {
+    display: inline-flex; gap: 2px; margin: 1.4rem 0 1.1rem; padding: 3px; border-radius: 999px;
+    background: var(--carte); border: 1px solid var(--trait);
+  }
+  .filtres button {
+    font: inherit; font-size: .82rem; color: var(--gris); background: none; border: 0; border-radius: 999px;
+    padding: .38rem .8rem; cursor: pointer;
+  }
+  .filtres button[aria-pressed="true"] { background: var(--encre); color: var(--fond); font-weight: 600; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+
+  .chiffres { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--trait); border: 1px solid var(--trait); border-radius: 16px; overflow: hidden; }
+  @media (min-width: 640px) { .chiffres { grid-template-columns: repeat(4, 1fr); } }
+  .chiffre { background: var(--carte); padding: .95rem 1rem 1rem; }
+  .chiffre small { display: block; color: var(--gris); font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; }
+  .chiffre b { display: block; font-size: 2rem; font-weight: 600; letter-spacing: -.03em; line-height: 1.15; margin: .3rem 0 .25rem; }
+  .ecart { font-size: .78rem; color: var(--gris); white-space: nowrap; }
+  .ecart .fl { font-weight: 600; }
+  .ecart.hausse .fl { color: var(--hausse); }
+  .ecart.baisse .fl { color: var(--baisse); }
+
+  section.bloc { margin-top: 1.8rem; position: relative; }
+  .bloc h2 { font-size: .7rem; font-weight: 600; color: var(--gris); text-transform: uppercase; letter-spacing: .07em; margin: 0 0 .7rem; }
+  .legende { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .78rem; color: var(--gris); margin: -.3rem 0 .5rem; }
+  .legende i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .4rem; vertical-align: 1px; }
+  svg.graphe { display: block; width: 100%; overflow: visible; }
+  svg.graphe text { fill: var(--gris); font-size: 10.5px; }
+  .bulle {
+    position: absolute; pointer-events: none; background: var(--encre); color: var(--fond);
+    border-radius: 8px; padding: .4rem .55rem; font-size: .78rem; line-height: 1.35; white-space: nowrap;
+    transform: translate(-50%, -100%); display: none; z-index: 5; font-weight: 500;
+  }
+
+  .origines { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .origines h3 { font-size: .78rem; color: var(--gris); font-weight: 500; margin: 0 0 .2rem; }
+  .origines ul, .lignes { list-style: none; margin: 0; padding: 0; }
+  .origines li { padding: .5rem 0; border-top: 1px solid var(--trait); font-size: .9rem; }
+  .origines li div { display: flex; justify-content: space-between; }
+  .barre { height: 3px; border-radius: 3px; background: var(--grille); margin-top: .35rem; overflow: hidden; }
+  .barre span { display: block; height: 100%; background: var(--s1); border-radius: 3px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  th, td { text-align: right; padding: .5rem .2rem; border-top: 1px solid var(--trait); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--gris); font-weight: 500; font-size: .75rem; border-top: 0; }
+  td.zero { color: #4a4843; }
+
+  .note { color: var(--gris); font-size: .78rem; margin-top: 2rem; line-height: 1.55; }
+  .cle { max-width: 22rem; margin: 5rem auto; text-align: center; }
+  .cle h1 { font-size: 1.1rem; font-weight: 600; }
+  .cle p { color: var(--gris); font-size: .88rem; }
+  .cle input { width: 100%; font: inherit; padding: .75rem .9rem; border-radius: 12px; border: 1px solid var(--trait); background: var(--carte); color: var(--encre); margin: .8rem 0; }
+  .cle button { width: 100%; font: inherit; font-weight: 600; padding: .75rem; border-radius: 12px; border: 0; background: var(--encre); color: var(--fond); cursor: pointer; }
+  .erreur { color: var(--baisse); font-size: .86rem; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <section class="cle" id="ecran-cle" hidden>
+    <h1>Statistiques du lien de la bio</h1>
+    <p>Colle ta clé : elle est dans « Lien tableau de bord TikTok (secret).txt », dans ton dossier APP.</p>
+    <form id="form-cle">
+      <input id="champ-cle" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Clé">
+      <button type="submit">Ouvrir</button>
+    </form>
+    <p class="erreur" id="erreur-cle" hidden>Cette clé ne marche pas.</p>
+  </section>
+
+  <div id="tableau" hidden>
+    <header>
+      <img src="images/traverse-icone.png" alt="">
+      <div>
+        <h1>Lien de ta bio</h1>
+        <p id="maj">traverse-app.fr/app</p>
+      </div>
+      <button class="icone" id="actualiser" type="button" aria-label="Actualiser">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </button>
+    </header>
+
+    <div class="filtres" role="group" aria-label="Période">
+      <button type="button" data-jours="1">Aujourd'hui</button>
+      <button type="button" data-jours="7" aria-pressed="true">7 j</button>
+      <button type="button" data-jours="30">30 j</button>
+      <button type="button" data-jours="90">90 j</button>
+    </div>
+
+    <div class="chiffres">
+      <div class="chiffre"><small>Visites</small><b id="k-visites">–</b><div class="ecart" id="e-visites"></div></div>
+      <div class="chiffre"><small>Depuis TikTok</small><b id="k-tiktok">–</b><div class="ecart" id="e-tiktok"></div></div>
+      <div class="chiffre"><small>Vers l'App Store</small><b id="k-store">–</b><div class="ecart" id="e-store"></div></div>
+      <div class="chiffre"><small>Passage</small><b id="k-taux">–</b><div class="ecart" id="e-taux"></div></div>
+    </div>
+
+    <section class="bloc">
+      <h2>Chaque jour</h2>
+      <div class="legende"><span><i style="background:var(--s1)"></i>Visites</span><span><i style="background:var(--s2)"></i>Vers l'App Store</span></div>
+      <svg class="graphe" id="g-jours" role="img" aria-label="Visites et envois vers l'App Store par jour"></svg>
+      <div class="bulle" id="b-jours"></div>
+    </section>
+
+    <section class="bloc">
+      <h2>Heure des visites · Paris</h2>
+      <svg class="graphe" id="g-heures" role="img" aria-label="Visites par heure"></svg>
+      <div class="bulle" id="b-heures"></div>
+    </section>
+
+    <section class="bloc">
+      <h2>Provenance</h2>
+      <div class="origines">
+        <div><h3>App</h3><ul id="l-apps"></ul></div>
+        <div><h3>Appareil</h3><ul id="l-appareils"></ul></div>
+      </div>
+      <p class="note" id="aide-bouton" hidden></p>
+    </section>
+
+    <section class="bloc">
+      <h2>Détail par jour</h2>
+      <table>
+        <thead><tr><th>Jour</th><th>Visites</th><th>TikTok</th><th>App Store</th></tr></thead>
+        <tbody id="t-jours"></tbody>
+      </table>
+    </section>
+
+    <p class="note">
+      « Vers l'App Store » : ouvertures dans Safari par les ••• de TikTok, et bouton touché hors de TikTok.
+      « Passage » : la part des visites qui vont jusqu'à l'App Store. Les flèches comparent avec la période
+      précédente de même durée. Les téléchargements sont dans App Store Connect › Analyses › Acquisition ›
+      Campagnes › « tiktok-bio ». Aucune donnée personnelle : ni cookie, ni adresse IP, ni identifiant.
+    </p>
+  </div>
+</main>
+
+<script>
+(function () {
+  var URL_STATS = 'https://yosancauakpbaxhbsjpn.supabase.co/rest/v1/rpc/stats_lien_bio';
+  var CLE_PUBLIQUE = 'sb_publishable_jkKmMsynYkz35e0ACQouZA_6jQERGod';
+  var MEMO = 'traverse-stats-cle';
+  var HISTOIRE = 90;                                   // jours renvoyés par stats_lien_bio
+  var jours = 7, lignes = [], cle = '';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var lire = function () { try { return localStorage.getItem(MEMO) || ''; } catch (e) { return ''; } };
+  var garder = function (v) { try { localStorage.setItem(MEMO, v); } catch (e) {} };
+  var fmt = function (n) { return n.toLocaleString('fr-FR'); };
+  var jourParis = function (d) { return new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }).format(d); };
+  // Les n jours qui finissent « decalage » jours avant aujourd'hui (heure de Paris), du plus ancien au plus récent.
+  function periode(n, decalage) {
+    var liste = [], t = Date.now();
+    for (var i = n - 1 + decalage; i >= decalage; i--) liste.push(jourParis(new Date(t - i * 86400000)));
+    return liste;
+  }
+  var joli = function (j) { var p = j.split('-'); return p[2] + '/' + p[1]; };
+
+  var estVisite = function (l) { return l.evenement === 'page'; };
+  var estTikTok = function (l) { return estVisite(l) && l.navigateur === 'tiktok'; };
+  var versStore = function (l) { return l.evenement === 'safari' || (l.evenement === 'bouton' && l.navigateur !== 'tiktok'); };
+  // heureMax : pour « Aujourd'hui », ne compter que jusqu'à l'heure actuelle, hier compris (sinon la
+  // journée en cours paraît toujours en baisse face à une journée entière).
+  function totaux(listeJours, heureMax) {
+    var garde = {}; listeJours.forEach(function (j) { garde[j] = true; });
+    var t = { visites: 0, tiktok: 0, store: 0, boutonTikTok: 0 };
+    lignes.forEach(function (l) {
+      if (!garde[l.jour] || (heureMax !== undefined && l.heure > heureMax)) return;
+      if (estVisite(l)) t.visites += l.n;
+      if (estTikTok(l)) t.tiktok += l.n;
+      if (versStore(l)) t.store += l.n;
+      if (l.evenement === 'bouton' && l.navigateur === 'tiktok') t.boutonTikTok += l.n;
+    });
+    t.taux = t.visites ? (100 * t.store) / t.visites : null;
+    return t;
+  }
+
+  async function charger() {
+    var r = await fetch(URL_STATS, {
+      method: 'POST', headers: { apikey: CLE_PUBLIQUE, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cle: cle })
+    });
+    if (!r.ok) throw new Error('réponse ' + r.status);
+    return r.json();
+  }
+
+  async function ouvrir(v) {
+    cle = (v || '').trim();
+    if (!cle) { $('ecran-cle').hidden = false; return; }
+    $('actualiser').classList.add('tourne');
+    try {
+      var d = await charger();
+      if (!d) { $('ecran-cle').hidden = false; $('erreur-cle').hidden = false; $('tableau').hidden = true; return; }
+      garder(cle);
+      lignes = d.lignes || [];
+      $('ecran-cle').hidden = true; $('tableau').hidden = false;
+      $('maj').textContent = 'traverse-app.fr/app · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      dessiner();
+    } catch (e) {
+      $('maj').textContent = 'Chiffres indisponibles pour l’instant (' + e.message + ')';
+    } finally {
+      $('actualiser').classList.remove('tourne');
+    }
+  }
+
+  // La flèche : verte si ça monte, rouge si ça baisse (icône + texte, jamais la couleur seule).
+  function ecart(el, avant, apres, enPoints, libelle) {
+    el.className = 'ecart';
+    if (avant === null || apres === null) { el.innerHTML = '<span class="fl">·</span> ' + libelle; return; }
+    var diff = apres - avant, txt;
+    if (enPoints) txt = Math.abs(Math.round(diff)) + ' pt' + (Math.abs(Math.round(diff)) > 1 ? 's' : '');
+    else if (avant === 0) txt = apres ? 'nouveau' : '0 %';
+    else txt = Math.abs(Math.round((100 * diff) / avant)) + ' %';
+    var sens = Math.round(diff * 10) === 0 ? 0 : diff > 0 ? 1 : -1;
+    if (sens > 0) el.classList.add('hausse');
+    if (sens < 0) el.classList.add('baisse');
+    el.innerHTML = '<span class="fl">' + (sens > 0 ? '▲' : sens < 0 ? '▼' : '=') + ' ' + txt + '</span> ' + libelle;
+  }
+
+  function dessiner() {
+    var actuelle = periode(jours, 0);
+    var comparable = jours * 2 <= HISTOIRE;
+    var precedente = comparable ? periode(jours, jours) : null;
+    var heure = jours === 1 ? Number(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: 'numeric', hourCycle: 'h23' }).format(new Date())) : undefined;
+    var a = totaux(actuelle), p = precedente ? totaux(precedente, heure) : null;
+    var libelle = !comparable ? 'pas de période avant' : jours === 1 ? 'vs hier à la même heure' : 'vs ' + jours + ' j avant';
+
+    $('k-visites').textContent = fmt(a.visites);
+    $('k-tiktok').textContent = fmt(a.tiktok);
+    $('k-store').textContent = fmt(a.store);
+    $('k-taux').textContent = a.taux === null ? '–' : Math.round(a.taux) + ' %';
+    ecart($('e-visites'), p ? p.visites : null, p ? a.visites : null, false, libelle);
+    ecart($('e-tiktok'), p ? p.tiktok : null, p ? a.tiktok : null, false, libelle);
+    ecart($('e-store'), p ? p.store : null, p ? a.store : null, false, libelle);
+    ecart($('e-taux'), p && p.taux !== null ? p.taux : null, p && a.taux !== null ? a.taux : null, true, libelle);
+    $('aide-bouton').hidden = !a.boutonTikTok;
+    $('aide-bouton').textContent = a.boutonTikTok
+      ? 'Bouton touché ' + a.boutonTikTok + ' fois à l’intérieur de TikTok : bloqué là-bas, le bandeau montre alors les •••.' : '';
+
+    // Par jour (au moins 7 jours affichés, pour que « Aujourd'hui » garde un peu de contexte).
+    var parJour = periode(Math.max(jours, 7), 0).map(function (j) {
+      var t = totaux([j]); return { jour: j, visites: t.visites, tiktok: t.tiktok, store: t.store };
+    });
+    barres($('g-jours'), $('b-jours'), parJour.map(function (d) {
+      return { etiquette: joli(d.jour), valeurs: [d.visites, d.store], bulle: joli(d.jour) + '<br>' + d.visites + ' visite' + (d.visites > 1 ? 's' : '') + ' · ' + d.store + ' vers l’App Store' };
+    }), ['var(--s1)', 'var(--s2)'], 170);
+
+    // Par heure, sur la période choisie.
+    var garde = {}; actuelle.forEach(function (j) { garde[j] = true; });
+    var h = []; for (var i = 0; i < 24; i++) h.push(0);
+    lignes.forEach(function (l) { if (garde[l.jour] && estVisite(l)) h[l.heure] += l.n; });
+    barres($('g-heures'), $('b-heures'), h.map(function (n, i) {
+      return { etiquette: i % 3 === 0 ? i + ' h' : '', valeurs: [n], bulle: i + ' h – ' + (i + 1) + ' h · ' + n + ' visite' + (n > 1 ? 's' : '') };
+    }), ['var(--s1)'], 130);
+
+    // Provenance, avec une fine barre de proportion.
+    var visitesSi = function (f) { return lignes.reduce(function (s, l) { return s + (garde[l.jour] && estVisite(l) && f(l) ? l.n : 0); }, 0); };
+    function liste(ul, items) {
+      var total = items.reduce(function (s, it) { return s + it[1]; }, 0) || 1;
+      ul.innerHTML = '';
+      items.forEach(function (it) {
+        var li = document.createElement('li'), ligne = document.createElement('div');
+        var nom = document.createElement('span'); nom.textContent = it[0];
+        var n = document.createElement('b'); n.textContent = fmt(it[1]);
+        ligne.append(nom, n);
+        var barre = document.createElement('div'); barre.className = 'barre';
+        var plein = document.createElement('span'); plein.style.width = (100 * it[1] / total) + '%';
+        barre.append(plein); li.append(ligne, barre); ul.append(li);
+      });
+    }
+    liste($('l-apps'), [['TikTok', visitesSi(function (l) { return l.navigateur === 'tiktok'; })], ['Instagram', visitesSi(function (l) { return l.navigateur === 'instagram'; })], ['Autre', visitesSi(function (l) { return l.navigateur === 'autre'; })]]);
+    liste($('l-appareils'), [['iPhone', visitesSi(function (l) { return l.appareil === 'iphone'; })], ['Android', visitesSi(function (l) { return l.appareil === 'android'; })], ['Ordinateur', visitesSi(function (l) { return l.appareil === 'ordinateur'; })]]);
+
+    // Tableau, du plus récent au plus ancien.
+    var tb = $('t-jours'); tb.innerHTML = '';
+    actuelle.slice().reverse().forEach(function (j) {
+      var t = totaux([j]), tr = document.createElement('tr');
+      [joli(j), t.visites, t.tiktok, t.store].forEach(function (v, k) {
+        var td = document.createElement('td'); td.textContent = k ? fmt(v) : v;
+        if (k && !v) td.className = 'zero';
+        tr.append(td);
+      });
+      tb.append(tr);
+    });
+  }
+
+  // Barres fines (une ou deux séries côte à côte), une seule échelle, bulle au survol ou au toucher.
+  function barres(svg, bulle, donnees, couleurs, H) {
+    var W = Math.max(280, svg.getBoundingClientRect().width || svg.parentNode.clientWidth);
+    var G = 26, B = 18, haut = 6;
+    var max = Math.max(1, Math.max.apply(null, donnees.map(function (d) { return Math.max.apply(null, d.valeurs); })));
+    var brut = max / 3, puissance = Math.pow(10, Math.floor(Math.log10(brut)));
+    var pas = max <= 3 ? 1 : [1, 2, 5, 10].map(function (m) { return m * puissance; }).find(function (s) { return s >= brut; });
+    var plafond = Math.ceil(max / pas) * pas;
+    var y = function (v) { return haut + (H - haut - B) * (1 - v / plafond); };
+    var lg = (W - G) / donnees.length, ns = couleurs.length;
+    var lb = Math.max(2, Math.min(22, (lg * 0.64 - 2 * (ns - 1)) / ns));
+    var s = '';
+    for (var v = 0; v <= plafond; v += pas) {
+      s += '<line x1="' + G + '" x2="' + W + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--grille)" stroke-width="1"' + (v ? ' stroke-dasharray="2 4"' : '') + '/>';
+      s += '<text x="0" y="' + (y(v) + 3.5) + '">' + v + '</text>';
+    }
+    var tous = donnees.length > 14 ? Math.ceil(donnees.length / 8) : 1;
+    donnees.forEach(function (d, i) {
+      var x0 = G + i * lg + (lg - (lb * ns + 2 * (ns - 1))) / 2;
+      d.valeurs.forEach(function (val, k) {
+        if (!val) return;
+        var x = x0 + k * (lb + 2), yy = y(val), r = Math.min(4, lb / 2, y(0) - yy);
+        // Coins arrondis en haut seulement, posés sur la ligne de base.
+        s += '<path d="M' + x + ',' + y(0) + 'V' + (yy + r) + 'Q' + x + ',' + yy + ' ' + (x + r) + ',' + yy + 'H' + (x + lb - r) + 'Q' + (x + lb) + ',' + yy + ' ' + (x + lb) + ',' + (yy + r) + 'V' + y(0) + 'Z" fill="' + couleurs[k] + '"/>';
+      });
+      if (d.etiquette && i % tous === 0) s += '<text x="' + (G + (i + 0.5) * lg) + '" y="' + (H - 3) + '" text-anchor="middle">' + d.etiquette + '</text>';
+      s += '<rect data-i="' + i + '" x="' + (G + i * lg) + '" y="0" width="' + lg + '" height="' + (H - B) + '" fill="transparent"/>';
+    });
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('height', H);
+    svg.innerHTML = s;
+    var montrer = function (e) {
+      var i = e.target.getAttribute && e.target.getAttribute('data-i');
+      if (i === null || i === undefined) { bulle.style.display = 'none'; return; }
+      var d = donnees[+i], boite = svg.getBoundingClientRect(), bloc = svg.parentNode.getBoundingClientRect();
+      bulle.innerHTML = d.bulle;
+      var cx = boite.left - bloc.left + (G + (+i + 0.5) * lg) * boite.width / W;
+      bulle.style.left = Math.min(Math.max(cx, 90), bloc.width - 90) + 'px';
+      bulle.style.top = (boite.top - bloc.top + y(Math.max.apply(null, d.valeurs)) * boite.height / H - 8) + 'px';
+      bulle.style.display = 'block';
+    };
+    svg.onpointermove = montrer; svg.onpointerdown = montrer;
+    svg.onpointerleave = function () { bulle.style.display = 'none'; };
+  }
+
+  document.querySelectorAll('.filtres button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.filtres button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      jours = +b.getAttribute('data-jours');
+      dessiner();
+    });
+  });
+  $('actualiser').addEventListener('click', function () { ouvrir(cle); });
+  $('form-cle').addEventListener('submit', function (e) { e.preventDefault(); $('erreur-cle').hidden = true; ouvrir($('champ-cle').value); });
+  var attente; window.addEventListener('resize', function () { clearTimeout(attente); attente = setTimeout(function () { if (!$('tableau').hidden) dessiner(); }, 150); });
+
+  // La clé : dans l'adresse (#...) la première fois, puis gardée dans ce navigateur.
+  var h = decodeURIComponent(location.hash.replace(/^#/, ''));
+  ouvrir(h || lire());
+})();
+</script>
+</body>
+</html>
