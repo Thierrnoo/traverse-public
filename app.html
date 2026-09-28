@@ -190,7 +190,8 @@
   else if (/[?&]moi(=1)?(&|$)/.test(location.search)) { moi = true; poserMoi(true); annoncer('Tes visites ne sont plus comptées dans ce navigateur.'); }
   var touches = 0, delai;
   document.querySelector('.marque img').addEventListener('click', function () {
-    touches++; clearTimeout(delai); delai = setTimeout(function () { touches = 0; }, 1500);
+    touches++; clearTimeout(delai); delai = setTimeout(function () { touches = 0; }, 2500);
+    if (touches >= 2 && touches < 5) annoncer('Encore ' + (5 - touches) + (5 - touches > 1 ? ' touches…' : ' touche…'));
     if (touches < 5) return;
     touches = 0; moi = !moi; poserMoi(moi);
     annoncer(moi ? 'Tes visites ne sont plus comptées dans ce navigateur.' : 'Tes visites sont de nouveau comptées dans ce navigateur.');
