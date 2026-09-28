@@ -157,17 +157,18 @@
   var lien = document.getElementById('telecharger').getAttribute('href');
   if (/Android/i.test(ua)) document.documentElement.classList.add('android');
 
-  // Arrivé dans Safari par « ••• > Ouvrir dans le navigateur » : l'App Store s'ouvre tout seul.
+  // Le lien de la bio TikTok est « app?telecharger ». TikTok bloque l'App Store (et l'ouverture directe
+  // de Safari, testé le 28 sept. 2026 sur son iPhone) ; « ••• > Ouvrir dans le navigateur » rouvre ce
+  // même lien dans Safari, et là l'App Store s'ouvre tout seul.
+  var telecharger = /[?&](telecharger|ouvrir=1)(&|=|$)/.test(location.search);
   if (!dansTikTok) {
-    if (/[?&]ouvrir=1/.test(location.search)) window.location.replace(lien);
+    if (telecharger) window.location.replace(lien);
     return;
   }
 
-  // Dans TikTok : l'App Store est bloqué (testé le 28 sept. 2026 sur son iPhone, l'ouverture directe de
-  // Safari aussi). L'adresse de la page prend « ?ouvrir=1 », pour que Safari, ouvert par les •••,
-  // file droit à l'App Store ; le bouton fait clignoter le bandeau qui montre les •••.
+  // Dans TikTok : le bandeau montre les ••• ; le bouton le fait clignoter.
   document.documentElement.classList.add('integre');
-  try { history.replaceState(null, '', location.pathname + '?ouvrir=1'); } catch (err) {}
+  try { if (!telecharger) history.replaceState(null, '', location.pathname + '?telecharger'); } catch (err) {}
   var guide = document.getElementById('guide');
   function insister() {
     guide.classList.remove('insiste'); void guide.offsetWidth; guide.classList.add('insiste');
