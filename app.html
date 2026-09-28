@@ -98,9 +98,18 @@
 
   .note-android { display: none; text-align: center; font-size: .95rem; background: #fff; border: 1px solid var(--trait); border-radius: 12px; padding: .7rem; margin: 0 0 1rem; }
   .android .note-android { display: block; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(1.2rem + env(safe-area-inset-bottom)); transform: translate(-50%, 1rem);
+    max-width: calc(100% - 2rem); background: var(--encre); color: #fff; border-radius: 12px; padding: .7rem 1rem;
+    font-size: .92rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 20;
+  }
+  .toast.vu { opacity: 1; transform: translate(-50%, 0); }
 </style>
 </head>
 <body>
+
+<div class="toast" id="toast" role="status"></div>
 
 <div class="guide" id="guide" role="note">
   Pour télécharger l'app : touche <span class="points3">•••</span> en haut à droite, puis
@@ -165,7 +174,30 @@
   var navigateur = dansTikTok ? 'tiktok' : /Instagram|FBAN|FBAV/i.test(ua) ? 'instagram' : 'autre';
   var appareil = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
     ? 'iphone' : /Android/i.test(ua) ? 'android' : 'ordinateur';
+
+  // Les visites de Thierno ne comptent pas. Chaque navigateur (celui de TikTok, Safari…) se marque à part :
+  // cinq touches rapides sur l'icône, ou l'adresse « app?moi » ; cinq touches de nouveau, ou « app?moi=0 »,
+  // le remettent. Le tableau de bord marque aussi le navigateur où il s'ouvre.
+  var MOI = 'traverse-ne-pas-compter';
+  var poserMoi = function (oui) { try { if (oui) localStorage.setItem(MOI, '1'); else localStorage.removeItem(MOI); } catch (e) {} };
+  var moi = (function () { try { return localStorage.getItem(MOI) === '1'; } catch (e) { return false; } })();
+  function annoncer(texte) {
+    var t = document.getElementById('toast');
+    t.textContent = texte; t.classList.add('vu');
+    setTimeout(function () { t.classList.remove('vu'); }, 3500);
+  }
+  if (/[?&]moi=0(&|$)/.test(location.search)) { moi = false; poserMoi(false); annoncer('Tes visites sont de nouveau comptées dans ce navigateur.'); }
+  else if (/[?&]moi(=1)?(&|$)/.test(location.search)) { moi = true; poserMoi(true); annoncer('Tes visites ne sont plus comptées dans ce navigateur.'); }
+  var touches = 0, delai;
+  document.querySelector('.marque img').addEventListener('click', function () {
+    touches++; clearTimeout(delai); delai = setTimeout(function () { touches = 0; }, 1500);
+    if (touches < 5) return;
+    touches = 0; moi = !moi; poserMoi(moi);
+    annoncer(moi ? 'Tes visites ne sont plus comptées dans ce navigateur.' : 'Tes visites sont de nouveau comptées dans ce navigateur.');
+  });
+
   function noter(evenement) {
+    if (moi) return Promise.resolve();
     try {
       return fetch('https://yosancauakpbaxhbsjpn.supabase.co/rest/v1/rpc/noter_visite_lien_bio', {
         method: 'POST',

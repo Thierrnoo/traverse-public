@@ -237,6 +237,8 @@
       var d = await charger();
       if (!d) { $('ecran-cle').hidden = false; $('erreur-cle').hidden = false; $('tableau').hidden = true; return; }
       garder(cle);
+      // Le navigateur où s'ouvre le tableau de bord est celui de Thierno : ses visites de app.html n'y comptent plus.
+      try { localStorage.setItem('traverse-ne-pas-compter', '1'); } catch (e) {}
       lignes = d.lignes || [];
       $('ecran-cle').hidden = true; $('tableau').hidden = false;
       $('maj').textContent = 'traverse-app.fr/app · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
