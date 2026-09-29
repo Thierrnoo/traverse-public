@@ -187,6 +187,8 @@
   var MEMO = 'traverse-stats-cle';
   var HISTOIRE = 90;                                   // jours renvoyés par stats_lien_bio
   var jours = 7, lignes = [], cle = '';
+  /** Le point de départ du comptage (jour et heure de Paris) : tout ce qui précède est ignoré. */
+  var DEPART = { jour: '2026-09-29', heure: 11 };
 
   var $ = function (id) { return document.getElementById(id); };
   var lire = function () { try { return localStorage.getItem(MEMO) || ''; } catch (e) { return ''; } };
@@ -239,9 +241,11 @@
       garder(cle);
       // Le navigateur où s'ouvre le tableau de bord est celui de Thierno : ses visites de app.html n'y comptent plus.
       try { localStorage.setItem('traverse-ne-pas-compter', '1'); } catch (e) {}
-      lignes = d.lignes || [];
+      // Remise à zéro du 29 sept. 2026 (demande de Thierno : sortir ses propres visites de test) : on ne
+      // compte qu'à partir de ce jour et de cette heure de Paris. Rien n'est effacé de la base.
+      lignes = (d.lignes || []).filter(function (l) { return l.jour > DEPART.jour || (l.jour === DEPART.jour && l.heure >= DEPART.heure); });
       $('ecran-cle').hidden = true; $('tableau').hidden = false;
-      $('maj').textContent = 'traverse-app.fr/app · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      $('maj').textContent = 'traverse-app.fr/app · compté depuis le ' + joli(DEPART.jour) + ' à ' + DEPART.heure + ' h · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
       dessiner();
     } catch (e) {
       $('maj').textContent = 'Chiffres indisponibles pour l’instant (' + e.message + ')';
