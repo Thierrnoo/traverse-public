@@ -387,6 +387,8 @@
         return { nom: pays(code), couleur: COULEURS_PAYS[k], valeurs: jours.map(function (j) { return (s.jour(j).p || {})[code] || 0; }) };
       });
       series.push({ nom: 'Autres', couleur: 'var(--autres)', valeurs: jours.map(function (j, i) { return parJour[i] - series.reduce(function (t, se) { return t + se.valeurs[i]; }, 0); }) });
+      // Un pays sans téléchargement sur la période sort de la légende ; les autres gardent leur couleur.
+      series = series.filter(function (se) { return se.valeurs.some(function (v) { return v > 0; }); });
       graphe(zone, { type: 'barres', empile: true, jours: jours, series: series });
       legende.innerHTML = series.map(function (se) { return '<span><i style="background:' + se.couleur + '"></i>' + esc(se.nom) + '</span>'; }).join('');
       return;
@@ -422,7 +424,7 @@
     h += '<text x="' + cx + '" y="' + (cy + 24) + '" text-anchor="middle" style="font-size:12px;fill:var(--gris)">' + pluriel(total, ['téléchargement', 'téléchargements']) + '</text>';
     corps.innerHTML = '<div class="hero"><span class="sous">' + duree(c, jours).replace(/^sur/, 'Sur') + jusque(c, s) + '</span></div>' +
       '<div class="donut"><svg viewBox="0 0 ' + S + ' ' + S + '" role="img" aria-label="Téléchargements par pays">' + h + '</svg><ul>' +
-      items.map(function (it) { return '<li><i style="background:' + it.couleur + '"></i><span>' + esc(it.nom) + '</span><b>' + fmt(it.v) + '</b><em>' + Math.round(100 * it.v / total) + ' %</em></li>'; }).join('') +
+      visibles.map(function (it) { return '<li><i style="background:' + it.couleur + '"></i><span>' + esc(it.nom) + '</span><b>' + fmt(it.v) + '</b><em>' + Math.round(100 * it.v / total) + ' %</em></li>'; }).join('') +
       '</ul></div>';
   }
 
