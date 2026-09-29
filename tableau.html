@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#11151b">
+<title>Tableau de bord Traverse</title>
+<link rel="icon" href="images/traverse-icone.png">
+<link rel="apple-touch-icon" href="images/traverse-icone.png">
+<!--
+  Le tableau de bord de Traverse, pour Thierno (29 sept. 2026) : téléchargements, lien de la bio,
+  abonnés, essais, revenu, voyages partagés. Une carte = une question, chacune avec sa période.
+  Ce qui vient d'où :
+    - le lien de la bio : la fonction Supabase stats_lien_bio (la même que traverse-app.fr/stats) ;
+    - Apple, RevenueCat et les voyages partagés : la fonction Supabase « tableau-de-bord », qui garde
+      les clés secrètes chez elle et ne renvoie que des totaux par jour.
+  Rien ne sort sans la clé du tableau de bord (après le # la première fois, puis gardée dans ce navigateur).
+  Chaque source tombe seule : une carte en panne n'empêche pas les autres de s'afficher.
+  Couleurs des séries : palette de référence validée sur le fond des cartes #1b2129 (script du 29 sept.).
+  ?demo : des chiffres inventés, pour voir la mise en page sans clé (bandeau « Exemple » affiché).
+-->
+<style>
+  :root {
+    color-scheme: dark;
+    --fond: #11151b; --carte: #1b2129; --trait: rgba(255,255,255,.07); --grille: #2b323c;
+    --encre: #f3f5f7; --doux: #c5ccd6; --gris: #8b95a3; --pale: #5d6673;
+    --accent: #d9772b;
+    --orange: #d95926; --bleu: #3987e5; --aqua: #199e70; --jaune: #c98500; --violet: #9085e9; --magenta: #d55181; --autres: #5d6673;
+    --hausse: #2fc36b; --baisse: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--fond); color: var(--encre);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.4; -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 88rem; margin: 0 auto; padding: max(1.2rem, env(safe-area-inset-top)) 1rem 3rem; }
+
+  .entete { display: flex; align-items: center; gap: .8rem; margin-bottom: .4rem; }
+  .entete img { width: 34px; height: 34px; border-radius: 9px; }
+  .entete h1 { font-size: 1.45rem; font-weight: 700; margin: 0; letter-spacing: -.02em; }
+  .entete p { margin: 0; color: var(--gris); font-size: .8rem; }
+  .icone {
+    margin-left: auto; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; flex: none;
+    background: var(--carte); border: 1px solid var(--trait); color: var(--encre); cursor: pointer; padding: 0;
+  }
+  .icone svg { width: 17px; height: 17px; }
+  .icone.tourne svg { animation: tourne .8s linear infinite; }
+  @keyframes tourne { to { transform: rotate(360deg); } }
+  .demo { background: #3a2a12; color: #f5c77e; border-radius: 10px; padding: .55rem .8rem; font-size: .85rem; margin: .8rem 0 0; }
+
+  h2.section { font-size: .72rem; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: .08em; margin: 1.6rem 0 .6rem; }
+  .grille { display: grid; grid-template-columns: 1fr; gap: .9rem; }
+  @media (min-width: 960px) { .grille { grid-template-columns: 1fr 1fr; } }
+
+  .carte { background: var(--carte); border: 1px solid var(--trait); border-radius: 16px; padding: 1rem 1.1rem .9rem; position: relative; min-width: 0; }
+  .tete { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .5rem; min-height: 30px; }
+  .tete h3 { font-size: 1rem; font-weight: 650; margin: 0 .4rem 0 0; letter-spacing: -.01em; }
+  .pilules { display: flex; gap: 2px; align-items: center; }
+  .pilules.periode { margin-left: auto; }
+  .sep { width: 1px; height: 18px; background: var(--grille); margin: 0 .15rem; }
+  .pil {
+    font: inherit; font-size: .8rem; font-weight: 600; color: var(--doux); background: none; border: 0; border-radius: 8px;
+    padding: .3rem .55rem; cursor: pointer; white-space: nowrap; line-height: 1.2;
+  }
+  .pil:hover { background: rgba(255,255,255,.06); }
+  .pil[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .pil.cal svg { width: 16px; height: 16px; display: block; }
+  .pil.cal { display: inline-flex; align-items: center; gap: .35rem; }
+  button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--bleu); outline-offset: 2px; }
+
+  .hero { display: flex; align-items: baseline; flex-wrap: wrap; gap: .1rem .6rem; margin: .85rem 0 .5rem; min-height: 2.6rem; }
+  .hero b { font-size: 2.1rem; font-weight: 750; letter-spacing: -.03em; line-height: 1.1; }
+  .hero .sous { color: var(--gris); font-size: .92rem; }
+  .hausse { color: var(--hausse); } .baisse { color: var(--baisse); }
+
+  .zone { position: relative; }
+  svg.graphe { display: block; width: 100%; overflow: visible; touch-action: pan-y; }
+  svg.graphe text { fill: var(--gris); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .bulle {
+    position: absolute; pointer-events: none; background: #0b0e12; color: var(--encre); border: 1px solid var(--grille);
+    border-radius: 10px; padding: .45rem .6rem; font-size: .8rem; line-height: 1.45; white-space: nowrap;
+    transform: translate(-50%, calc(-100% - 10px)); display: none; z-index: 5; box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  }
+  .bulle small { color: var(--gris); display: block; }
+  .bulle i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .4rem; vertical-align: 0; }
+  .legende { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem 1rem; font-size: .78rem; color: var(--doux); margin-top: .5rem; min-height: 1.1rem; }
+  .legende i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .4rem; }
+  .pied { color: var(--pale); font-size: .74rem; margin: .5rem 0 0; }
+  .pied a { color: var(--gris); }
+
+  .vide { display: grid; place-items: center; text-align: center; color: var(--gris); font-size: .9rem; min-height: 200px; padding: 1rem; line-height: 1.5; }
+  .vide strong { color: var(--doux); display: block; font-weight: 600; margin-bottom: .2rem; }
+  .attente { border-radius: 8px; background: linear-gradient(90deg, #222933 0%, #2a323d 50%, #222933 100%); background-size: 200% 100%; animation: luit 1.4s ease-in-out infinite; }
+  @keyframes luit { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+  .donut { display: flex; align-items: center; justify-content: center; gap: 1.6rem; flex-wrap: wrap; padding: .4rem 0 .2rem; }
+  .donut svg { width: 210px; height: 210px; flex: none; }
+  .donut ul { list-style: none; margin: 0; padding: 0; min-width: 12rem; }
+  .donut li { display: flex; align-items: center; gap: .55rem; font-size: .85rem; padding: .28rem 0; color: var(--doux); }
+  .donut li i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .donut li span { flex: 1; }
+  .donut li b { font-weight: 600; color: var(--encre); font-variant-numeric: tabular-nums; }
+  .donut li em { font-style: normal; color: var(--gris); width: 3rem; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .calendrier {
+    position: absolute; right: 1rem; top: 3rem; z-index: 10; background: #0b0e12; border: 1px solid var(--grille);
+    border-radius: 12px; padding: .8rem; display: grid; gap: .5rem; font-size: .82rem; color: var(--gris);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45); width: 16rem;
+  }
+  .calendrier label { display: grid; gap: .2rem; }
+  .calendrier input { font: inherit; color: var(--encre); background: var(--carte); border: 1px solid var(--grille); border-radius: 8px; padding: .4rem .5rem; color-scheme: dark; }
+  .calendrier .boutons { display: flex; gap: .4rem; }
+  .calendrier button { flex: 1; font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: .45rem; cursor: pointer; }
+  .calendrier .ok { background: var(--accent); color: #fff; }
+  .calendrier .non { background: var(--grille); color: var(--doux); }
+
+  .cle { max-width: 22rem; margin: 5rem auto; text-align: center; }
+  .cle h1 { font-size: 1.1rem; font-weight: 600; }
+  .cle p { color: var(--gris); font-size: .88rem; }
+  .cle input { width: 100%; font: inherit; padding: .75rem .9rem; border-radius: 12px; border: 1px solid var(--grille); background: var(--carte); color: var(--encre); margin: .8rem 0; }
+  .cle button { width: 100%; font: inherit; font-weight: 600; padding: .75rem; border-radius: 12px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
+  .erreur { color: var(--baisse); font-size: .86rem; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <section class="cle" id="ecran-cle" hidden>
+    <h1>Tableau de bord Traverse</h1>
+    <p>Colle ta clé : c'est celle de traverse-app.fr/stats, dans « Lien tableau de bord TikTok (secret).txt ».</p>
+    <form id="form-cle">
+      <input id="champ-cle" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Clé">
+      <button type="submit">Ouvrir</button>
+    </form>
+    <p class="erreur" id="erreur-cle" hidden>Cette clé ne marche pas.</p>
+  </section>
+
+  <div id="tableau" hidden>
+    <header class="entete">
+      <img src="images/traverse-icone.png" alt="">
+      <div>
+        <h1>Tableau de bord</h1>
+        <p id="maj">Traverse</p>
+      </div>
+      <button class="icone" id="actualiser" type="button" aria-label="Actualiser">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+      </button>
+    </header>
+    <p class="demo" id="bandeau-demo" hidden>Exemple : ces chiffres sont inventés, pour voir la mise en page. Enlève « ?demo » de l'adresse pour les vrais.</p>
+
+    <h2 class="section">Acquisition</h2>
+    <div class="grille" id="s-acquisition"></div>
+    <h2 class="section">Monétisation · RevenueCat</h2>
+    <div class="grille" id="s-monetisation"></div>
+    <h2 class="section">Dans l'app</h2>
+    <div class="grille" id="s-usage"></div>
+  </div>
+</main>
+
+<script>
+(function () {
+  var SUPABASE = 'https://yosancauakpbaxhbsjpn.supabase.co';
+  var CLE_PUBLIQUE = 'sb_publishable_jkKmMsynYkz35e0ACQouZA_6jQERGod';
+  var MEMO = 'traverse-stats-cle';                 // la même clé que traverse-app.fr/stats
+  var MEMO_APPLE = 'traverse-apple-jours-v1';      // les jours Apple déjà publiés (ils ne changent plus)
+  var HISTOIRE = 90;
+  /** Le lien de la bio ne compte qu'à partir de là (remise à zéro du 29 sept., comme sur /stats). */
+  var DEPART = { jour: '2026-09-29', heure: 10 };
+  var DEMO = /[?&]demo\b/.test(location.search);
+  /** Couleurs des pays, dans l'ordre de la palette validée ; la cinquième tranche est « Autres ». */
+  var COULEURS_PAYS = ['var(--bleu)', 'var(--orange)', 'var(--aqua)', 'var(--jaune)'];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var lire = function (k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
+  var garder = function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} };
+  var fmt = function (n) { return Math.round(n).toLocaleString('fr-FR'); };
+  var euros = function (n, dec) { return n.toLocaleString('fr-FR', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }) + ' €'; };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var pluriel = function (n, u) { return Math.abs(Math.round(n)) > 1 ? u[1] : u[0]; };
+  var jourDans = function (tz, decalage) { return new Intl.DateTimeFormat('fr-CA', { timeZone: tz }).format(new Date(Date.now() - (decalage || 0) * 86400000)); };
+  function plusJours(j, n) { var d = new Date(j + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+  function suite(debut, fin) { var l = []; for (var j = debut; j <= fin; j = plusJours(j, 1)) l.push(j); return l; }
+  var court = function (j) { var p = j.split('-'); return p[2] + '/' + p[1]; };
+  var long = function (j) { return new Date(j + 'T12:00:00Z').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' }); };
+  var complet = function (j) { return new Date(j + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'UTC' }); };
+  var nomsPays = (function () { try { return new Intl.DisplayNames(['fr'], { type: 'region' }); } catch (e) { return null; } })();
+  function pays(code) { if (code === '??') return 'Inconnu'; try { return (nomsPays && nomsPays.of(code)) || code; } catch (e) { return code; } }
+
+  // ------------------------------------------------------------------------------------------
+  // Les données, une entrée par source. etat : chargement | ok | absente | erreur.
+  var D = { lien: { etat: 'chargement' }, apple: { etat: 'chargement' }, rc: { etat: 'chargement' }, partages: { etat: 'chargement' } };
+  var cle = '';
+
+  // Une source de la page, ramenée à une même forme : jours de debut à fin, valeur(j).
+  function source(c) {
+    var s = c.source === 'rc' ? D.rc : D[c.source];
+    if (s.etat !== 'ok') return s;
+    if (c.source === 'rc') {
+      var g = s.series[c.graphe];
+      if (!g) return { etat: 'erreur', message: 'RevenueCat n’a pas renvoyé ce graphe.' };
+      return g;
+    }
+    return s;
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // Les cartes : une carte = une question.
+  var CARTES = [
+    { id: 'telechargements', section: 'acquisition', titre: 'Téléchargements', source: 'apple', type: 'barres', couleur: 'var(--orange)',
+      modes: true, ventilation: 'Pays', unite: ['téléchargement', 'téléchargements'],
+      pied: 'App Store Connect · premiers téléchargements, sans les réinstallations ni les mises à jour · jours d’Apple (heure de Californie), publiés le lendemain' },
+    { id: 'pays', section: 'acquisition', titre: 'Pays', source: 'apple', type: 'donut',
+      pied: 'Pays du compte App Store de la personne qui télécharge' },
+    { id: 'lien', section: 'acquisition', titre: 'Lien de la bio', source: 'lien', type: 'lien',
+      pied: 'traverse-app.fr/app · compté depuis le 29/09 à 10 h · <a href="stats">le détail</a>' },
+    { id: 'ouvertures', section: 'acquisition', titre: 'Premières ouvertures', source: 'rc', graphe: 'customers_new', type: 'barres', couleur: 'var(--bleu)',
+      modes: true, unite: ['nouvel utilisateur', 'nouveaux utilisateurs'],
+      pied: 'RevenueCat · nouveaux utilisateurs, comptés à la première ouverture de l’app · jours UTC' },
+    { id: 'abonnes', section: 'monetisation', titre: 'Abonnés actifs', source: 'rc', graphe: 'actives', type: 'aire', couleur: 'var(--aqua)',
+      unite: ['abonné', 'abonnés'], pied: 'RevenueCat · abonnements payants en cours, jour par jour' },
+    { id: 'essais', section: 'monetisation', titre: 'Essais actifs', source: 'rc', graphe: 'trials', type: 'aire', couleur: 'var(--bleu)',
+      unite: ['essai en cours', 'essais en cours'], pied: 'RevenueCat · essais gratuits de 7 jours en cours' },
+    { id: 'nouveaux-essais', section: 'monetisation', titre: 'Nouveaux essais / jour', source: 'rc', graphe: 'trials_new', type: 'barres', couleur: 'var(--violet)',
+      modes: true, unite: ['essai', 'essais'], pied: 'RevenueCat · essais démarrés · jours UTC' },
+    { id: 'revenu', section: 'monetisation', titre: 'Revenu', source: 'rc', graphe: 'revenue', type: 'barres', couleur: 'var(--jaune)', euros: true,
+      pied: 'RevenueCat · revenu brut, avant la part d’Apple et les taxes · jours UTC' },
+    { id: 'partages', section: 'usage', titre: 'Voyages partagés', source: 'partages', type: 'barres', couleur: 'var(--magenta)',
+      modes: true, unite: ['voyage partagé', 'voyages partagés'], pied: 'Supabase · liens de partage créés depuis l’app · heure de Paris' }
+  ];
+
+  var ICONE_CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>';
+
+  function construire() {
+    CARTES.forEach(function (c) {
+      c.etat = { n: 30, du: '', au: '', mode: 'jour', ventil: false };
+      var el = document.createElement('article');
+      el.className = 'carte'; el.id = 'c-' + c.id;
+      var h = '<div class="tete"><h3>' + c.titre + '</h3>';
+      if (c.modes) h += '<div class="pilules" data-role="modes"><button class="pil" data-mode="jour" aria-pressed="true">Par jour</button><button class="pil" data-mode="cumul" aria-pressed="false">Cumulés</button></div>';
+      if (c.ventilation) h += '<span class="sep"></span><div class="pilules"><button class="pil" data-ventil="1" aria-pressed="false">' + c.ventilation + '</button></div>';
+      h += '<div class="pilules periode" data-role="periode">' +
+        [7, 30, 90].map(function (n) { return '<button class="pil" data-n="' + n + '" aria-pressed="' + (n === 30) + '">' + n + 'j</button>'; }).join('') +
+        '<button class="pil cal" data-cal="1" aria-pressed="false" aria-label="Choisir les dates">' + ICONE_CAL + '<span></span></button></div></div>';
+      h += '<div class="corps"></div>';
+      if (c.pied) h += '<p class="pied">' + c.pied + '</p>';
+      h += '<div class="calendrier" hidden><label>Du<input type="date" data-du></label><label>Au<input type="date" data-au></label>' +
+        '<div class="boutons"><button class="non" type="button" data-effacer>Effacer</button><button class="ok" type="button" data-appliquer>Appliquer</button></div></div>';
+      el.innerHTML = h;
+      $('s-' + c.section).append(el);
+      c.el = el;
+      el.addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        var st = c.etat, cal = el.querySelector('.calendrier');
+        if (b.dataset.mode) { st.mode = b.dataset.mode; if (st.mode === 'cumul') st.ventil = false; }
+        else if (b.dataset.ventil) { st.ventil = !st.ventil; if (st.ventil) st.mode = 'jour'; }
+        else if (b.dataset.n) { st.n = +b.dataset.n; st.du = st.au = ''; cal.hidden = true; }
+        else if (b.dataset.cal) { ouvrirCalendrier(c); return; }
+        else if (b.hasAttribute('data-effacer')) { st.du = st.au = ''; cal.hidden = true; }
+        else if (b.hasAttribute('data-appliquer')) {
+          var du = cal.querySelector('[data-du]').value, au = cal.querySelector('[data-au]').value;
+          if (du && au && du !== au) { st.du = du < au ? du : au; st.au = du < au ? au : du; }
+          cal.hidden = true;
+        } else return;
+        rendre(c);
+      });
+    });
+  }
+
+  function ouvrirCalendrier(c) {
+    var cal = c.el.querySelector('.calendrier'), s = source(c);
+    if (!cal.hidden) { cal.hidden = true; return; }
+    if (s.etat !== 'ok') return;
+    var du = cal.querySelector('[data-du]'), au = cal.querySelector('[data-au]');
+    du.min = au.min = s.debut; du.max = au.max = s.fin;
+    du.value = c.etat.du || fenetre(c, s)[0]; au.value = c.etat.au || s.fin;
+    cal.hidden = false;
+  }
+
+  // La fenêtre affichée : les n derniers jours de la source, ou la plage choisie au calendrier.
+  function fenetre(c, s) {
+    var st = c.etat;
+    if (st.du && st.au) return suite(st.du < s.debut ? s.debut : st.du, st.au > s.fin ? s.fin : st.au);
+    var debut = plusJours(s.fin, -(st.n - 1));
+    return suite(debut < s.debut ? s.debut : debut, s.fin);
+  }
+  // La même durée juste avant, si l'histoire la contient entièrement.
+  function avant(c, s, jours) {
+    if (c.etat.du || !jours.length) return null;
+    var fin = plusJours(jours[0], -1), debut = plusJours(fin, -(jours.length - 1));
+    return debut < s.debut ? null : suite(debut, fin);
+  }
+  function somme(s, jours, f) { return jours.reduce(function (t, j) { return t + (f ? f(s.jour(j)) : (s.valeur(j) || 0)); }, 0); }
+
+  function pilules(c, s) {
+    var st = c.etat, el = c.el;
+    el.querySelectorAll('[data-mode]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.mode === st.mode)); });
+    el.querySelectorAll('[data-ventil]').forEach(function (b) { b.setAttribute('aria-pressed', String(st.ventil)); });
+    el.querySelectorAll('[data-n]').forEach(function (b) { b.setAttribute('aria-pressed', String(!st.du && +b.dataset.n === st.n)); });
+    var cal = el.querySelector('[data-cal]');
+    cal.setAttribute('aria-pressed', String(!!st.du));
+    cal.querySelector('span').textContent = st.du ? court(st.du) + ' – ' + court(st.au) : '';
+    // Les commandes n'existent que si la donnée existe.
+    var ok = s.etat === 'ok';
+    el.querySelectorAll('.tete .pilules, .tete .sep').forEach(function (p) { p.hidden = !ok; });
+  }
+
+  function ecart(actuel, precedent, libelle) {
+    if (precedent === null || precedent === undefined) return '';
+    var diff = actuel - precedent;
+    var txt = precedent === 0 ? (actuel ? 'nouveau' : '=') : Math.abs(Math.round(100 * diff / precedent)) + ' %';
+    var sens = diff > 0 ? 'hausse' : diff < 0 ? 'baisse' : '';
+    return ' · <span class="' + sens + '">' + (diff > 0 ? '▲ ' : diff < 0 ? '▼ ' : '') + txt + '</span> ' + libelle;
+  }
+  // Apple publie le lendemain : on dit jusqu'à quel jour on sait (inutile quand les dates sont choisies).
+  var jusque = function (c, s) { return s.jusque && !c.etat.du ? ' · jusqu’au ' + court(s.fin) : ''; };
+  var duree = function (c, jours) { return c.etat.du ? 'du ' + court(jours[0]) + ' au ' + court(jours[jours.length - 1]) : 'sur ' + c.etat.n + 'j'; };
+
+  // ------------------------------------------------------------------------------------------
+  function rendre(c) {
+    var s = source(c), corps = c.el.querySelector('.corps');
+    pilules(c, s);
+    if (s.etat === 'chargement') {
+      corps.innerHTML = '<div class="hero"><span class="attente" style="width:9rem;height:2.1rem"></span></div><div class="attente" style="height:200px"></div><div class="legende"></div>';
+      return;
+    }
+    if (s.etat !== 'ok') {
+      corps.innerHTML = '<div class="vide"><div>' + (s.etat === 'absente' ? '<strong>À brancher</strong>' : '<strong>Indisponible</strong>') + esc(s.message || '') + '</div></div>';
+      return;
+    }
+    corps.innerHTML = '<div class="hero"><b></b><span class="sous"></span></div>' +
+      (s.alerte ? '<p class="pied" style="color:var(--baisse);margin:-.3rem 0 .5rem">' + esc(s.alerte) + ' Des jours peuvent manquer.</p>' : '') +
+      '<div class="zone"><svg class="graphe" role="img" aria-label="' + esc(c.titre) + ' par jour"></svg><div class="bulle"></div></div><div class="legende"></div>';
+    var hero = corps.querySelector('.hero b'), sous = corps.querySelector('.sous'), zone = corps.querySelector('.zone'), legende = corps.querySelector('.legende');
+    var jours = fenetre(c, s), prec = avant(c, s, jours), st = c.etat;
+    var libelleAvant = 'vs ' + jours.length + ' j avant';
+    hero.style.color = c.couleur || 'var(--encre)';
+
+    if (c.type === 'donut') { rendreDonut(c, s, jours, corps); return; }
+
+    if (c.type === 'lien') {
+      var vis = jours.map(function (j) { return s.jour(j).visites; }), sto = jours.map(function (j) { return s.jour(j).store; });
+      var tv = vis.reduce(add, 0), ts = sto.reduce(add, 0);
+      hero.textContent = fmt(tv);
+      sous.innerHTML = pluriel(tv, ['visite', 'visites']) + ' ' + duree(c, jours) + ' · ' + fmt(ts) + ' vers l’App Store' + (tv ? ' · ' + Math.round(100 * ts / tv) + ' % de passage' : '') +
+        ecart(tv, prec ? somme(s, prec, function (v) { return v.visites; }) : null, libelleAvant);
+      graphe(zone, { type: 'barres', jours: jours, series: [{ nom: 'Visites', couleur: 'var(--bleu)', valeurs: vis }, { nom: 'Vers l’App Store', couleur: 'var(--orange)', valeurs: sto }] });
+      legende.innerHTML = '<span><i style="background:var(--bleu)"></i>Visites</span><span><i style="background:var(--orange)"></i>Vers l’App Store</span>';
+      return;
+    }
+
+    if (c.type === 'aire') {
+      var vals = jours.map(function (j) { return s.valeur(j); });
+      var dernier = vals[vals.length - 1] || 0, premier = vals[0] || 0, d = dernier - premier;
+      hero.textContent = fmt(dernier);
+      sous.innerHTML = '<span class="' + (d > 0 ? 'hausse' : d < 0 ? 'baisse' : '') + '">' + (d > 0 ? '+' : d < 0 ? '−' : '±') + fmt(Math.abs(d)) + ' ' + duree(c, jours) + '</span>';
+      graphe(zone, { type: 'aire', jours: jours, series: [{ nom: c.titre, couleur: c.couleur, valeurs: vals }], unite: c.unite });
+      return;
+    }
+
+    // Barres : par jour, cumulé, ou ventilé par pays.
+    var parJour = jours.map(function (j) { return s.valeur(j) || 0; });
+    var total = parJour.reduce(add, 0);
+    if (c.euros) {
+      var tr = jours.reduce(function (t, j) { return t + (s.second(j) || 0); }, 0);
+      hero.textContent = euros(total);
+      sous.innerHTML = duree(c, jours) + ' · ' + fmt(tr) + ' ' + pluriel(tr, ['transaction', 'transactions']) + (tr ? ' · ' + euros(total / tr, 2) + '/transaction' : '') +
+        ecart(total, prec ? somme(s, prec) : null, libelleAvant);
+      graphe(zone, { type: 'barres', jours: jours, euros: true, series: [{ nom: 'Revenu', couleur: c.couleur, valeurs: parJour }] });
+      return;
+    }
+    if (st.mode === 'cumul') {
+      var avantFenetre = somme(s, suite(s.debut, plusJours(jours[0], -1)));
+      var cumul = []; parJour.reduce(function (t, v) { t += v; cumul.push(t); return t; }, avantFenetre);
+      hero.textContent = fmt(cumul[cumul.length - 1] || 0);
+      sous.innerHTML = pluriel(cumul[cumul.length - 1], c.unite) + ' depuis le ' + court(s.debut) + ' · <span class="' + (total ? 'hausse' : '') + '">+' + fmt(total) + ' ' + duree(c, jours) + '</span>' + jusque(c, s);
+      graphe(zone, { type: 'aire', jours: jours, series: [{ nom: 'Cumul', couleur: c.couleur, valeurs: cumul }], unite: c.unite });
+      return;
+    }
+    hero.textContent = fmt(total);
+    sous.innerHTML = pluriel(total, c.unite) + ' ' + duree(c, jours) + jusque(c, s) + ecart(total, prec ? somme(s, prec) : null, libelleAvant);
+    if (st.ventil && s.pays) {
+      var top = s.topPays();
+      var series = top.map(function (code, k) {
+        return { nom: pays(code), couleur: COULEURS_PAYS[k], valeurs: jours.map(function (j) { return (s.jour(j).p || {})[code] || 0; }) };
+      });
+      series.push({ nom: 'Autres', couleur: 'var(--autres)', valeurs: jours.map(function (j, i) { return parJour[i] - series.reduce(function (t, se) { return t + se.valeurs[i]; }, 0); }) });
+      graphe(zone, { type: 'barres', empile: true, jours: jours, series: series });
+      legende.innerHTML = series.map(function (se) { return '<span><i style="background:' + se.couleur + '"></i>' + esc(se.nom) + '</span>'; }).join('');
+      return;
+    }
+    graphe(zone, { type: 'barres', jours: jours, series: [{ nom: c.titre, couleur: c.couleur, valeurs: parJour }], unite: c.unite });
+  }
+  function add(a, b) { return a + b; }
+
+  function rendreDonut(c, s, jours, corps) {
+    var parPays = {};
+    jours.forEach(function (j) { var p = s.jour(j).p || {}; Object.keys(p).forEach(function (k) { parPays[k] = (parPays[k] || 0) + p[k]; }); });
+    var total = Object.keys(parPays).reduce(function (t, k) { return t + parPays[k]; }, 0);
+    var top = s.topPays();
+    var items = top.map(function (code, k) { return { nom: pays(code), couleur: COULEURS_PAYS[k], v: parPays[code] || 0 }; });
+    var reste = total - items.reduce(function (t, it) { return t + it.v; }, 0);
+    items.push({ nom: 'Autres', couleur: 'var(--autres)', v: reste });
+    corps.innerHTML = '';
+    if (!total) { corps.innerHTML = '<div class="vide">Aucun téléchargement ' + duree(c, jours) + '.</div>'; return; }
+    var S = 210, R = 100, r = 62, cx = S / 2, cy = S / 2, a = -Math.PI / 2, h = '';
+    var visibles = items.filter(function (it) { return it.v > 0; });
+    visibles.forEach(function (it) {
+      var b = a + 2 * Math.PI * it.v / total;
+      if (visibles.length === 1) {
+        h += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R + r) / 2 + '" fill="none" stroke="' + it.couleur + '" stroke-width="' + (R - r) + '"><title>' + esc(it.nom) + ' · ' + fmt(it.v) + '</title></circle>';
+      } else {
+        var grand = b - a > Math.PI ? 1 : 0;
+        var p = function (rad, ang) { return (cx + rad * Math.cos(ang)).toFixed(2) + ',' + (cy + rad * Math.sin(ang)).toFixed(2); };
+        h += '<path d="M' + p(R, a) + 'A' + R + ',' + R + ' 0 ' + grand + ' 1 ' + p(R, b) + 'L' + p(r, b) + 'A' + r + ',' + r + ' 0 ' + grand + ' 0 ' + p(r, a) + 'Z" fill="' + it.couleur + '" stroke="var(--carte)" stroke-width="2" stroke-linejoin="round"><title>' + esc(it.nom) + ' · ' + fmt(it.v) + '</title></path>';
+      }
+      a = b;
+    });
+    h += '<text x="' + cx + '" y="' + (cy + 4) + '" text-anchor="middle" style="font-size:28px;font-weight:750;fill:var(--encre)">' + fmt(total) + '</text>';
+    h += '<text x="' + cx + '" y="' + (cy + 24) + '" text-anchor="middle" style="font-size:12px;fill:var(--gris)">' + pluriel(total, ['téléchargement', 'téléchargements']) + '</text>';
+    corps.innerHTML = '<div class="hero"><span class="sous">' + duree(c, jours).replace(/^sur/, 'Sur') + jusque(c, s) + '</span></div>' +
+      '<div class="donut"><svg viewBox="0 0 ' + S + ' ' + S + '" role="img" aria-label="Téléchargements par pays">' + h + '</svg><ul>' +
+      items.map(function (it) { return '<li><i style="background:' + it.couleur + '"></i><span>' + esc(it.nom) + '</span><b>' + fmt(it.v) + '</b><em>' + Math.round(100 * it.v / total) + ' %</em></li>'; }).join('') +
+      '</ul></div>';
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // Le graphe : barres (côte à côte ou empilées) ou aire, une seule échelle, bulle au survol ou au toucher.
+  function echelle(max, euros) {
+    if (max <= 0) return { pas: 1, plafond: 4 };
+    var brut = max / 4, puissance = Math.pow(10, Math.floor(Math.log10(brut)));
+    var pas = [1, 2, 5, 10].map(function (m) { return m * puissance; }).find(function (x) { return x >= brut; });
+    if (!euros) pas = Math.max(1, Math.round(pas));
+    return { pas: pas, plafond: Math.ceil(max / pas) * pas };
+  }
+
+  function graphe(zone, o) {
+    var svg = zone.querySelector('svg'), bulle = zone.querySelector('.bulle');
+    var W = Math.max(280, zone.clientWidth), H = 210;
+    var n = o.jours.length, ns = o.series.length;
+    var total = function (i) { return o.series.reduce(function (t, s) { return t + Math.max(0, s.valeurs[i]); }, 0); };
+    var max = 0;
+    for (var i = 0; i < n; i++) max = Math.max(max, o.empile ? total(i) : Math.max.apply(null, o.series.map(function (s) { return s.valeurs[i]; })));
+    var e = echelle(max, o.euros);
+    var etiq = function (v) { return o.euros ? fmt(v) + ' €' : fmt(v); };
+    var G = Math.max(28, 8 + 6.4 * etiq(e.plafond).length), B = 24, HAUT = 8, D = 4;
+    var y = function (v) { return HAUT + (H - HAUT - B) * (1 - v / e.plafond); };
+    var s = '';
+    for (var v = 0; v <= e.plafond + 1e-9; v += e.pas) {
+      s += '<line x1="' + G + '" x2="' + (W - D) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--grille)" stroke-width="1"' + (v ? ' stroke-dasharray="3 5"' : '') + '/>';
+      s += '<text x="' + (G - 8) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + etiq(v) + '</text>';
+    }
+    var aire = o.type === 'aire', lg = (W - G - D) / n;
+    var xPoint = function (i) { return aire ? (n > 1 ? G + 6 + i * (W - G - D - 12) / (n - 1) : G + (W - G - D) / 2) : G + (i + 0.5) * lg; };
+
+    if (aire) {
+      var se = o.series[0], pts = se.valeurs.map(function (val, i) { return [xPoint(i), y(Math.max(0, val))]; });
+      var ligne = courbe(pts), idg = 'dg' + Math.random().toString(36).slice(2, 8);
+      s += '<defs><linearGradient id="' + idg + '" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="' + se.couleur + '" stop-opacity=".45"/><stop offset="1" stop-color="' + se.couleur + '" stop-opacity="0"/></linearGradient></defs>';
+      s += '<path d="' + ligne + 'L' + pts[pts.length - 1][0] + ',' + y(0) + 'L' + pts[0][0] + ',' + y(0) + 'Z" fill="url(#' + idg + ')"/>';
+      s += '<path d="' + ligne + '" fill="none" stroke="' + se.couleur + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+      s += '<line class="viseur" y1="' + HAUT + '" y2="' + y(0) + '" stroke="var(--gris)" stroke-width="1" stroke-dasharray="3 3" visibility="hidden"/>';
+      s += '<circle class="point" r="4.5" fill="' + se.couleur + '" stroke="var(--carte)" stroke-width="2" visibility="hidden"/>';
+    } else {
+      var nb = o.empile ? 1 : ns, ecartB = nb > 1 ? 2 : 0;
+      var lb = Math.max(1.5, Math.min(34, (lg * 0.72 - ecartB * (nb - 1)) / nb));
+      for (var k = 0; k < n; k++) {
+        var x0 = G + k * lg + (lg - (lb * nb + ecartB * (nb - 1))) / 2, base = 0;
+        o.series.forEach(function (serie, m) {
+          var val = Math.max(0, serie.valeurs[k]);
+          if (!val) return;
+          var x = o.empile ? x0 : x0 + m * (lb + ecartB);
+          var bas = o.empile ? y(base) - (base > 0 ? 2 : 0) : y(0);
+          var hautB = o.empile ? y(base + val) : y(val);
+          base += o.empile ? val : 0;
+          if (bas - hautB < 0.5) return;
+          var dessus = !o.empile || o.series.slice(m + 1).every(function (x2) { return !(x2.valeurs[k] > 0); });
+          var rr = dessus ? Math.min(4, lb / 2, bas - hautB) : 0;
+          s += '<path d="M' + x + ',' + bas + 'V' + (hautB + rr) + 'Q' + x + ',' + hautB + ' ' + (x + rr) + ',' + hautB + 'H' + (x + lb - rr) + 'Q' + (x + lb) + ',' + hautB + ' ' + (x + lb) + ',' + (hautB + rr) + 'V' + bas + 'Z" fill="' + serie.couleur + '"/>';
+        });
+      }
+    }
+    // Dates : au plus sept, jamais chevauchées.
+    var nbEtiq = Math.max(2, Math.min(7, n, Math.floor((W - G) / (aire ? 64 : 46)))), deja = {};
+    if (n === 1) nbEtiq = 1;
+    for (var q = 0; q < nbEtiq; q++) {
+      var idx = nbEtiq === 1 ? n - 1 : Math.round(q * (n - 1) / (nbEtiq - 1));
+      if (deja[idx]) continue; deja[idx] = 1;
+      var ancre = aire && n > 1 ? (idx === 0 ? 'start' : idx === n - 1 ? 'end' : 'middle') : 'middle';
+      s += '<text x="' + xPoint(idx) + '" y="' + (H - 5) + '" text-anchor="' + ancre + '">' + (aire ? long(o.jours[idx]) : court(o.jours[idx])) + '</text>';
+    }
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('height', H);
+    svg.innerHTML = s;
+
+    var viseur = svg.querySelector('.viseur'), point = svg.querySelector('.point');
+    function montrer(ev) {
+      var boite = svg.getBoundingClientRect(), x = (ev.clientX - boite.left) * W / boite.width;
+      if (x < G - 4 || x > W) { cacher(); return; }
+      var pasX = n > 1 ? xPoint(1) - xPoint(0) : 1;
+      var i = aire ? Math.round((x - xPoint(0)) / pasX) : Math.floor((x - G) / lg);
+      i = Math.max(0, Math.min(n - 1, i));
+      var lignes = o.series.map(function (se2) {
+        var val2 = se2.valeurs[i];
+        if (ns === 1) return '<b>' + (o.euros ? euros(val2, 2) : fmt(val2)) + '</b>' + (o.unite ? ' ' + pluriel(val2, o.unite) : '');
+        return '<i style="background:' + se2.couleur + '"></i>' + esc(se2.nom) + ' : <b>' + fmt(val2) + '</b>';
+      });
+      if (o.empile) lignes.push('Total : <b>' + fmt(total(i)) + '</b>');
+      bulle.innerHTML = '<small>' + complet(o.jours[i]) + '</small>' + lignes.join('<br>');
+      var hautVal = o.empile ? total(i) : Math.max.apply(null, o.series.map(function (se3) { return se3.valeurs[i]; }));
+      var px = xPoint(i) * boite.width / W, py = y(Math.max(0, hautVal)) * boite.height / H;
+      bulle.style.left = Math.min(Math.max(px, 80), boite.width - 80) + 'px';
+      bulle.style.top = py + 'px';
+      bulle.style.display = 'block';
+      if (viseur) { viseur.setAttribute('x1', xPoint(i)); viseur.setAttribute('x2', xPoint(i)); viseur.setAttribute('visibility', 'visible'); }
+      if (point) { point.setAttribute('cx', xPoint(i)); point.setAttribute('cy', y(Math.max(0, hautVal))); point.setAttribute('visibility', 'visible'); }
+    }
+    function cacher() {
+      bulle.style.display = 'none';
+      if (viseur) viseur.setAttribute('visibility', 'hidden');
+      if (point) point.setAttribute('visibility', 'hidden');
+    }
+    svg.onpointermove = montrer; svg.onpointerdown = montrer; svg.onpointerleave = cacher;
+  }
+
+  // Courbe monotone (Fritsch-Carlson) : elle ne dépasse jamais les points, pas de faux creux ni de faux pic.
+  function courbe(p) {
+    var n = p.length;
+    if (n < 2) return 'M' + p[0][0] + ',' + p[0][1];
+    var d = [], m = [], k;
+    for (k = 0; k < n - 1; k++) d.push((p[k + 1][1] - p[k][1]) / (p[k + 1][0] - p[k][0]));
+    m[0] = d[0]; m[n - 1] = d[n - 2];
+    for (k = 1; k < n - 1; k++) m[k] = d[k - 1] * d[k] <= 0 ? 0 : (d[k - 1] + d[k]) / 2;
+    for (k = 0; k < n - 1; k++) {
+      if (d[k] === 0) { m[k] = 0; m[k + 1] = 0; continue; }
+      var a = m[k] / d[k], b = m[k + 1] / d[k], t = a * a + b * b;
+      if (t > 9) { var f = 3 / Math.sqrt(t); m[k] = f * a * d[k]; m[k + 1] = f * b * d[k]; }
+    }
+    var s = 'M' + p[0][0] + ',' + p[0][1];
+    for (k = 0; k < n - 1; k++) {
+      var h = (p[k + 1][0] - p[k][0]) / 3;
+      s += 'C' + (p[k][0] + h) + ',' + (p[k][1] + m[k] * h) + ' ' + (p[k + 1][0] - h) + ',' + (p[k + 1][1] - m[k + 1] * h) + ' ' + p[k + 1][0] + ',' + p[k + 1][1];
+    }
+    return s;
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // Les sources, ramenées à la forme commune.
+
+  function sourceLien(lignes) {
+    var fin = jourDans('Europe/Paris'), debut = plusJours(fin, -(HISTOIRE - 1));
+    if (debut < DEPART.jour) debut = DEPART.jour;
+    var parJour = {};
+    lignes.forEach(function (l) {
+      if (l.jour < DEPART.jour || (l.jour === DEPART.jour && l.heure < DEPART.heure)) return;
+      var t = parJour[l.jour] || (parJour[l.jour] = { visites: 0, store: 0 });
+      if (l.evenement === 'page') t.visites += l.n;
+      if (l.evenement === 'safari' || (l.evenement === 'bouton' && l.navigateur !== 'tiktok')) t.store += l.n;
+    });
+    return { etat: 'ok', debut: debut, fin: fin, jour: function (j) { return parJour[j] || { visites: 0, store: 0 }; } };
+  }
+
+  function sourceApple(jours) {
+    var connus = Object.keys(jours).filter(function (j) { return jours[j]; }).sort();
+    if (!connus.length) return { etat: 'erreur', message: 'Apple n’a encore publié aucun jour.' };
+    var fin = connus[connus.length - 1], debut = plusJours(fin, -(HISTOIRE - 1));
+    var jour = function (j) { return jours[j] || { t: 0, r: 0, p: {} }; };
+    // Les couleurs suivent les pays les plus fréquents sur toute l'histoire, jamais le rang de la fenêtre.
+    var cumul = {};
+    suite(debut, fin).forEach(function (j) { var p = jour(j).p || {}; Object.keys(p).forEach(function (k) { cumul[k] = (cumul[k] || 0) + p[k]; }); });
+    var top = Object.keys(cumul).filter(function (k) { return cumul[k] > 0; }).sort(function (a, b) { return cumul[b] - cumul[a]; }).slice(0, 4);
+    return { etat: 'ok', debut: debut, fin: fin, jusque: true, pays: true, jour: jour, valeur: function (j) { return jour(j).t; }, topPays: function () { return top; } };
+  }
+
+  function sourceSerie(points, enCours) {
+    var fin = new Date().toISOString().slice(0, 10), debut = plusJours(fin, -(HISTOIRE - 1));
+    var v = {}, n = {};
+    points.forEach(function (p) { v[p.jour] = p.v; if (p.n !== undefined) n[p.jour] = p.n; });
+    // Une série « en cours » (abonnés, essais) garde sa dernière valeur connue les jours sans point :
+    // un jour pas encore compté n'est pas un jour à zéro abonné.
+    if (enCours) {
+      var dernier = 0;
+      suite(plusJours(debut, -30), fin).forEach(function (j) { if (v[j] === undefined) v[j] = dernier; else dernier = v[j]; });
+    }
+    return { etat: 'ok', debut: debut, fin: fin, valeur: function (j) { return v[j] || 0; }, second: function (j) { return n[j] || 0; } };
+  }
+
+  function sourceParJour(parJour, tz) {
+    var fin = jourDans(tz), debut = plusJours(fin, -(HISTOIRE - 1));
+    return { etat: 'ok', debut: debut, fin: fin, valeur: function (j) { return parJour[j] || 0; } };
+  }
+
+  function recevoir(r) {
+    // Apple : on garde les jours publiés depuis plus de quatre jours, ils ne bougent plus.
+    var a = r.apple || {};
+    if (a.absente) D.apple = { etat: 'absente', message: 'Ajoute la clé App Store Connect dans Supabase pour voir les téléchargements.' };
+    else if (a.jours) {
+      var memo = memoApple(), vieux = jourDans('America/Los_Angeles', 4);
+      Object.keys(a.jours).forEach(function (j) { if (a.jours[j]) memo[j] = a.jours[j]; });
+      var gardes = {}; Object.keys(memo).forEach(function (j) { if (j <= vieux && j >= jourDans('America/Los_Angeles', HISTOIRE + 5)) gardes[j] = memo[j]; });
+      garder(MEMO_APPLE, JSON.stringify(gardes));
+      D.apple = a.erreur && !Object.keys(memo).length ? { etat: 'erreur', message: a.erreur } : sourceApple(memo);
+      if (a.erreur && D.apple.etat === 'ok') D.apple.alerte = a.erreur;
+    } else D.apple = { etat: 'erreur', message: a.erreur || 'Apple ne répond pas pour l’instant.' };
+
+    var rc = r.revenuecat || {};
+    if (rc.absente) D.rc = { etat: 'absente', message: 'Ajoute une clé secrète RevenueCat dans Supabase pour voir abonnés, essais et revenu.' };
+    else if (rc.series) {
+      var series = {};
+      Object.keys(rc.series).forEach(function (k) {
+        var x = rc.series[k];
+        series[k] = Array.isArray(x) ? sourceSerie(x, k === 'actives' || k === 'trials') : { etat: 'erreur', message: x.erreur };
+      });
+      D.rc = { etat: 'ok', series: series };
+    } else D.rc = { etat: 'erreur', message: rc.erreur || 'RevenueCat ne répond pas pour l’instant.' };
+
+    var p = r.partages || {};
+    D.partages = p.jours ? sourceParJour(p.jours, 'Europe/Paris') : { etat: p.absente ? 'absente' : 'erreur', message: p.erreur || '' };
+  }
+  function memoApple() { try { return JSON.parse(lire(MEMO_APPLE) || '{}'); } catch (e) { return {}; } }
+
+  // ------------------------------------------------------------------------------------------
+  async function appeler(chemin, corps) {
+    return fetch(SUPABASE + chemin, {
+      method: 'POST',
+      headers: { apikey: CLE_PUBLIQUE, Authorization: 'Bearer ' + CLE_PUBLIQUE, 'Content-Type': 'application/json' },
+      body: JSON.stringify(corps)
+    });
+  }
+
+  async function ouvrir(v) {
+    cle = (v || '').trim();
+    if (!cle) { $('ecran-cle').hidden = false; return; }
+    $('actualiser').classList.add('tourne');
+    try {
+      var r = await appeler('/rest/v1/rpc/stats_lien_bio', { cle: cle });
+      if (!r.ok) throw new Error('réponse ' + r.status);
+      var lien = await r.json();
+      if (!lien) { $('ecran-cle').hidden = false; $('erreur-cle').hidden = false; $('tableau').hidden = true; return; }
+      garder(MEMO, cle);
+      // Le navigateur du tableau de bord est celui de Thierno : ses visites de app.html n'y comptent plus.
+      garder('traverse-ne-pas-compter', '1');
+      $('ecran-cle').hidden = true; $('tableau').hidden = false;
+      D.lien = sourceLien(lien.lignes || []);
+      CARTES.forEach(rendre);
+
+      // Les jours Apple qui manquent encore dans ce navigateur (du plus récent au plus ancien).
+      var memo = memoApple(), besoin = [];
+      for (var i = 1; i <= HISTOIRE; i++) { var j = jourDans('America/Los_Angeles', i); if (!memo[j]) besoin.push(j); }
+      try {
+        var rf = await appeler('/functions/v1/tableau-de-bord', { cle: cle, apple: besoin });
+        if (rf.status === 404) throw new Error('La fonction « tableau-de-bord » n’est pas encore en ligne sur Supabase.');
+        if (!rf.ok) throw new Error('La fonction « tableau-de-bord » répond ' + rf.status + '.');
+        recevoir(await rf.json());
+      } catch (e) {
+        var m = e && e.message && /tableau-de-bord/.test(e.message) ? e.message : 'La fonction « tableau-de-bord » ne répond pas (pas encore en ligne ?).';
+        D.apple = { etat: 'erreur', message: m }; D.rc = { etat: 'erreur', message: m }; D.partages = { etat: 'erreur', message: m };
+      }
+      $('maj').textContent = 'Traverse · à jour à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      CARTES.forEach(rendre);
+    } catch (e) {
+      $('maj').textContent = 'Chiffres indisponibles pour l’instant (' + e.message + ')';
+    } finally {
+      $('actualiser').classList.remove('tourne');
+    }
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // ?demo : des chiffres inventés, reconnaissables au bandeau.
+  function demo() {
+    $('bandeau-demo').hidden = false; $('tableau').hidden = false;
+    var graine = 7, hasard = function () { graine = (graine * 16807) % 2147483647; return graine / 2147483647; };
+    var jours = [], k;
+    for (k = HISTOIRE; k >= 1; k--) jours.push(jourDans('America/Los_Angeles', k));
+    var apple = {};
+    jours.forEach(function (j, i) {
+      var t = Math.round((20 + i * 1.6) * (0.6 + hasard() * 0.8)), fr = Math.round(t * 0.62), be = Math.round(t * 0.12), ch = Math.round(t * 0.08), ca = Math.round(t * 0.07);
+      apple[j] = { t: t, r: Math.round(t * 0.1), p: { FR: fr, BE: be, CH: ch, CA: ca, MA: t - fr - be - ch - ca } };
+    });
+    var utc = []; for (k = HISTOIRE - 1; k >= 0; k--) utc.push(new Date(Date.now() - k * 86400000).toISOString().slice(0, 10));
+    var act = 40, es = 20, serie = function (f) { return utc.map(function (j, i) { return f(j, i); }); };
+    var lignes = [];
+    suite(DEPART.jour, jourDans('Europe/Paris')).forEach(function (j) {
+      for (var h = 8; h < 24; h += 2) {
+        lignes.push({ jour: j, heure: h, evenement: 'page', navigateur: 'tiktok', appareil: 'iphone', n: Math.round(hasard() * 30) });
+        lignes.push({ jour: j, heure: h, evenement: 'safari', navigateur: 'tiktok', appareil: 'iphone', n: Math.round(hasard() * 8) });
+      }
+    });
+    D.lien = sourceLien(lignes);
+    recevoir({
+      apple: { jours: apple },
+      revenuecat: { series: {
+        actives: serie(function () { act += Math.round(hasard() * 6 - 1); return { v: act }; }).map(function (p, i) { return { jour: utc[i], v: p.v }; }),
+        trials: serie(function () { es = Math.max(5, es + Math.round(hasard() * 8 - 3.5)); return es; }).map(function (v, i) { return { jour: utc[i], v: v }; }),
+        trials_new: serie(function () { return Math.round(4 + hasard() * 14); }).map(function (v, i) { return { jour: utc[i], v: v }; }),
+        revenue: serie(function () { var n = Math.round(1 + hasard() * 9); return [n * 29.99 * (0.8 + hasard() * 0.3), n]; }).map(function (v, i) { return { jour: utc[i], v: v[0], n: v[1] }; }),
+        customers_new: serie(function () { return Math.round(15 + hasard() * 45); }).map(function (v, i) { return { jour: utc[i], v: v }; })
+      } },
+      partages: { jours: (function () { var o = {}; jours.forEach(function (j, i) { if (i > 80) o[j] = Math.round(hasard() * 6); }); return o; })() }
+    });
+    $('maj').textContent = 'Exemple';
+    CARTES.forEach(rendre);
+  }
+
+  construire();
+  $('actualiser').addEventListener('click', function () { if (DEMO) demo(); else ouvrir(cle); });
+  $('form-cle').addEventListener('submit', function (e) { e.preventDefault(); $('erreur-cle').hidden = true; ouvrir($('champ-cle').value); });
+  var attente; window.addEventListener('resize', function () { clearTimeout(attente); attente = setTimeout(function () { if (!$('tableau').hidden) CARTES.forEach(rendre); }, 150); });
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('.calendrier') || e.target.closest('[data-cal]')) return;
+    document.querySelectorAll('.calendrier').forEach(function (c) { c.hidden = true; });
+  });
+
+  if (DEMO) { demo(); return; }
+  var h = decodeURIComponent(location.hash.replace(/^#/, ''));
+  if (h) history.replaceState(null, '', location.pathname + location.search);
+  ouvrir(h || lire(MEMO));
+})();
+</script>
+</body>
+</html>
