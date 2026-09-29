@@ -109,6 +109,15 @@
   .donut li b { font-weight: 600; color: var(--encre); font-variant-numeric: tabular-nums; }
   .donut li em { font-style: normal; color: var(--gris); width: 3rem; text-align: right; font-variant-numeric: tabular-nums; }
 
+  .origines { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; padding: .2rem 0 .4rem; }
+  .origines h4 { font-size: .8rem; color: var(--gris); font-weight: 500; margin: 0 0 .2rem; }
+  .origines ul { list-style: none; margin: 0; padding: 0; }
+  .origines li { padding: .6rem 0; border-top: 1px solid var(--trait); font-size: .92rem; }
+  .origines li > div:first-child { display: flex; justify-content: space-between; }
+  .origines li b { font-variant-numeric: tabular-nums; }
+  .barre { height: 3px; border-radius: 3px; background: var(--grille); margin-top: .4rem; overflow: hidden; }
+  .barre span { display: block; height: 100%; background: var(--bleu); border-radius: 3px; }
+
   .calendrier {
     position: absolute; right: 1rem; top: 3rem; z-index: 10; background: #0b0e12; border: 1px solid var(--grille);
     border-radius: 12px; padding: .8rem; display: grid; gap: .5rem; font-size: .82rem; color: var(--gris);
@@ -241,6 +250,8 @@
       pied: 'Pays du compte App Store de la personne qui télécharge' },
     { id: 'lien', section: 'acquisition', titre: 'Lien de la bio', source: 'lien', type: 'lien',
       pied: 'traverse-app.fr/app · compté depuis le 29/09 à 10 h · <a href="stats">le détail</a>' },
+    { id: 'provenance', section: 'acquisition', titre: 'Provenance du lien', source: 'lien', type: 'provenance',
+      pied: 'Visites de traverse-app.fr/app, selon l’app où le lien a été ouvert et le type d’appareil · sans cookie ni identifiant' },
     { id: 'abonnes', section: 'monetisation', titre: 'Abonnés actifs', source: 'rc', graphe: 'actives', type: 'aire', couleur: 'var(--aqua)',
       unite: ['abonné', 'abonnés'], pied: 'RevenueCat · abonnements payants en cours, jour par jour' },
     { id: 'essais', section: 'monetisation', titre: 'Essais actifs', source: 'rc', graphe: 'trials', type: 'aire', couleur: 'var(--bleu)',
@@ -402,6 +413,24 @@
         ecart(tv, prec ? somme(s, prec, function (v) { return v.visites; }) : null, libelleAvant);
       graphe(zone, { type: 'barres', jours: jours, series: [{ nom: 'Visites', couleur: 'var(--bleu)', valeurs: vis }, { nom: 'Vers l’App Store', couleur: 'var(--orange)', valeurs: sto }] });
       legende.innerHTML = '<span><i style="background:var(--bleu)"></i>Visites</span><span><i style="background:var(--orange)"></i>Vers l’App Store</span>';
+      return;
+    }
+
+    if (c.type === 'provenance') {
+      var somme2 = function (cle, code) { return jours.reduce(function (t, j) { return t + (s.jour(j)[cle][code] || 0); }, 0); };
+      var visites = jours.reduce(function (t, j) { return t + s.jour(j).visites; }, 0);
+      var liste = function (titre2, cle, items) {
+        var tot = items.reduce(function (t, it) { return t + somme2(cle, it[0]); }, 0) || 1;
+        return '<div><h4>' + titre2 + '</h4><ul>' + items.map(function (it) {
+          var n = somme2(cle, it[0]);
+          return '<li><div><span>' + it[1] + '</span><b>' + fmt(n) + '</b></div><div class="barre"><span style="width:' + (100 * n / tot) + '%"></span></div></li>';
+        }).join('') + '</ul></div>';
+      };
+      corps.innerHTML = '<div class="hero"><span class="sous">' + duree(c, jours).replace(/^sur/, 'Sur') + ' · ' + fmt(visites) + ' ' + pluriel(visites, ['visite', 'visites']) + '</span></div>' +
+        '<div class="origines">' +
+        liste('App', 'apps', [['tiktok', 'TikTok'], ['instagram', 'Instagram'], ['autre', 'Autre']]) +
+        liste('Appareil', 'appareils', [['iphone', 'iPhone'], ['android', 'Android'], ['ordinateur', 'Ordinateur']]) +
+        '</div>';
       return;
     }
 
@@ -629,13 +658,18 @@
     var fin = jourDans('Europe/Paris'), debut = plusJours(fin, -(HISTOIRE - 1));
     if (debut < DEPART.jour) debut = DEPART.jour;
     var parJour = {};
+    var vide = function () { return { visites: 0, store: 0, apps: {}, appareils: {} }; };
     lignes.forEach(function (l) {
       if (l.jour < DEPART.jour || (l.jour === DEPART.jour && l.heure < DEPART.heure)) return;
-      var t = parJour[l.jour] || (parJour[l.jour] = { visites: 0, store: 0 });
-      if (l.evenement === 'page') t.visites += l.n;
+      var t = parJour[l.jour] || (parJour[l.jour] = vide());
+      if (l.evenement === 'page') {
+        t.visites += l.n;
+        t.apps[l.navigateur] = (t.apps[l.navigateur] || 0) + l.n;
+        t.appareils[l.appareil] = (t.appareils[l.appareil] || 0) + l.n;
+      }
       if (l.evenement === 'safari' || (l.evenement === 'bouton' && l.navigateur !== 'tiktok')) t.store += l.n;
     });
-    return { etat: 'ok', debut: debut, fin: fin, jour: function (j) { return parJour[j] || { visites: 0, store: 0 }; } };
+    return { etat: 'ok', debut: debut, fin: fin, jour: function (j) { return parJour[j] || vide(); } };
   }
 
   function sourceApple(jours) {
@@ -822,6 +856,7 @@
     suite(DEPART.jour, jourDans('Europe/Paris')).forEach(function (j) {
       for (var h = 8; h < 24; h += 2) {
         lignes.push({ jour: j, heure: h, evenement: 'page', navigateur: 'tiktok', appareil: 'iphone', n: Math.round(hasard() * 30) });
+        lignes.push({ jour: j, heure: h, evenement: 'page', navigateur: hasard() < 0.6 ? 'instagram' : 'autre', appareil: hasard() < 0.7 ? 'android' : 'ordinateur', n: Math.round(hasard() * 8) });
         lignes.push({ jour: j, heure: h, evenement: 'safari', navigateur: 'tiktok', appareil: 'iphone', n: Math.round(hasard() * 8) });
       }
     });
