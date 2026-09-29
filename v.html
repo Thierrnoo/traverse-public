@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Un voyage t'attend sur Traverse</title>
+<meta name="description" content="On te partage un voyage organisé jour par jour avec Traverse. Ouvre-le dans l'app : il s'ajoute à tes voyages.">
+<meta property="og:title" content="Un voyage t'attend sur Traverse">
+<meta property="og:description" content="Un voyage organisé jour par jour, prêt à ajouter à tes voyages.">
+<meta property="og:image" content="https://traverse-app.fr/images/traverse-icone.png">
+<meta name="robots" content="noindex">
+<link rel="icon" href="images/traverse-icone.png">
+<link rel="apple-touch-icon" href="images/traverse-icone.png">
+<!--
+  Page d'arrivée d'un voyage partagé depuis l'app (bloc 108) : traverse-app.fr/v?c=<code>.
+  Elle lit le voyage sur Supabase (fonction voyage_partage, clé publique), montre la première journée,
+  et propose de l'ouvrir dans l'app (traverse://partage/<code>) ou de télécharger Traverse.
+  Les textes du voyage viennent d'un utilisateur : ils sont posés en textContent, jamais en HTML.
+  Aucun cookie, aucune mesure d'audience.
+-->
+<style>
+  :root {
+    color-scheme: light;
+    --creme: #fff8ef; --encre: #1d1d1b; --corail: #ed7d55; --corail-fonce: #b4562a;
+    --gris: #6b6455; --trait: #eadfce; --soleil: #f2b458; --carte: #ffffff; --sauge: #8fa58a;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--encre);
+    background: var(--creme);
+    line-height: 1.5;
+  }
+  main { max-width: 30rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+
+  .marque { display: flex; align-items: center; gap: .75rem; }
+  .marque img { width: 44px; height: 44px; border-radius: 11px; box-shadow: 0 3px 10px rgba(29,29,27,.15); }
+  .marque b { font-size: 1.1rem; }
+
+  .couverture {
+    margin: 1.25rem 0 0; width: 100%; aspect-ratio: 16 / 10; border-radius: 20px; overflow: hidden;
+    background: linear-gradient(135deg, #f7d9a8, var(--corail));
+  }
+  .couverture img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .surtitre { margin: 1.1rem 0 0; font-size: .78rem; font-weight: 700; letter-spacing: .08em; color: var(--corail-fonce); }
+  h1 { font-size: 1.9rem; line-height: 1.15; letter-spacing: -.02em; margin: .25rem 0 .3rem; overflow-wrap: anywhere; }
+  .resume { color: var(--gris); margin: 0 0 1.2rem; }
+
+  .bouton {
+    display: flex; align-items: center; justify-content: center; gap: .6rem;
+    width: 100%; padding: 1rem; border: 0; border-radius: 16px;
+    background: var(--corail); color: #fff; font: inherit; font-size: 1.1rem; font-weight: 700;
+    text-decoration: none; box-shadow: 0 8px 20px rgba(237,125,85,.35); cursor: pointer;
+  }
+  .bouton:active { transform: scale(.98); }
+  .bouton.second {
+    margin-top: .7rem; background: var(--carte); color: var(--encre);
+    border: 1.5px solid var(--corail); box-shadow: none;
+  }
+  .bouton svg { width: 20px; height: 20px; fill: currentColor; flex: none; }
+  .aide { color: var(--gris); font-size: .92rem; margin: .8rem 0 0; }
+  .aide b { color: var(--encre); }
+  .aide.forte { background: var(--carte); border: 1.5px solid var(--soleil); border-radius: 12px; padding: .7rem .85rem; color: var(--encre); }
+
+  .jour { margin-top: 1.8rem; background: var(--carte); border-radius: 18px; padding: .4rem 1rem .8rem; box-shadow: 0 4px 16px rgba(29,29,27,.06); }
+  .jour h2 { font-size: .8rem; letter-spacing: .08em; color: var(--gris); margin: .8rem 0 .2rem; }
+  .moment { font-size: .78rem; font-weight: 700; letter-spacing: .07em; margin: .9rem 0 .2rem; }
+  .moment.matin { color: #c98a1b; } .moment.apresmidi { color: var(--corail-fonce); } .moment.soir { color: #5f7a5a; }
+  .activite { display: flex; gap: .75rem; align-items: center; padding: .45rem 0; border-top: 1px solid var(--trait); }
+  .activite:first-of-type { border-top: 0; }
+  .activite img, .activite .vide { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; flex: none; background: var(--trait); }
+  .activite b { display: block; font-weight: 600; overflow-wrap: anywhere; }
+  .activite span { display: block; color: var(--gris); font-size: .9rem; overflow-wrap: anywhere; }
+  .suite { text-align: center; color: var(--gris); margin: 1rem 0 0; font-size: .95rem; }
+
+  .etat { text-align: center; color: var(--gris); padding: 3rem 0 1rem; }
+  .cache { display: none !important; }
+  .note-android { text-align: center; font-size: .95rem; background: #fff; border: 1px solid var(--trait); border-radius: 12px; padding: .7rem; margin: 0 0 1rem; }
+
+  footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--trait); color: var(--gris); font-size: .88rem; text-align: center; }
+  footer a { color: var(--corail-fonce); }
+</style>
+</head>
+<body>
+<main>
+  <div class="marque">
+    <img src="images/traverse-icone.png" alt="" width="44" height="44">
+    <b>Traverse</b>
+  </div>
+
+  <p class="etat" id="etat">…</p>
+
+  <section id="voyage" class="cache">
+    <div class="couverture"><img id="couverture" alt="" class="cache"></div>
+    <p class="surtitre" id="surtitre"></p>
+    <h1 id="titre"></h1>
+    <p class="resume" id="resume"></p>
+
+    <p class="note-android cache" id="android"></p>
+
+    <a class="bouton" id="ouvrir" href="#"></a>
+    <a class="bouton second" id="telecharger" href="https://apps.apple.com/app/apple-store/id6810519361?pt=129270140&amp;ct=partage&amp;mt=8">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.37 12.63c-.02-2.2 1.8-3.26 1.88-3.31-1.02-1.5-2.62-1.7-3.19-1.72-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.62 1.11 8.79.73 1.06 1.61 2.25 2.75 2.2 1.1-.04 1.52-.71 2.86-.71 1.33 0 1.71.71 2.88.69 1.19-.02 1.94-1.08 2.67-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.32-.89-2.34-3.55zM14.17 6.18c.61-.74 1.02-1.76.91-2.78-.88.04-1.94.59-2.57 1.32-.56.65-1.06 1.69-.93 2.69.98.08 1.98-.5 2.59-1.23z"/></svg>
+      <span id="telechargerTexte"></span>
+    </a>
+    <p class="aide" id="aide"></p>
+
+    <div class="jour" id="jour1"></div>
+    <p class="suite" id="suite"></p>
+  </section>
+
+  <section id="introuvable" class="cache">
+    <p class="etat" id="introuvableTexte"></p>
+    <a class="bouton" href="https://apps.apple.com/app/apple-store/id6810519361?pt=129270140&amp;ct=partage&amp;mt=8" id="introuvableBouton"></a>
+  </section>
+
+  <footer>
+    <a href="support.html">Assistance</a> · <a href="index.html">Confidentialité et mentions légales</a>
+  </footer>
+</main>
+
+<script>
+(function () {
+  var API = 'https://yosancauakpbaxhbsjpn.supabase.co/rest/v1/rpc/voyage_partage';
+  var CLE = 'sb_publishable_jkKmMsynYkz35e0ACQouZA_6jQERGod';
+
+  // Les textes de la page, dans la langue du navigateur (celle de l'app sinon, le français au pire).
+  var TEXTES = {
+    fr: {
+      chargement: 'Ouverture du voyage…', surtitre: 'ON TE PARTAGE UN VOYAGE',
+      jours: function (n) { return n + (n > 1 ? ' jours' : ' jour'); },
+      activites: function (n) { return n + (n > 1 ? ' activités' : ' activité'); },
+      ouvrir: 'Ouvrir dans Traverse', telecharger: 'Télécharger Traverse',
+      aide: 'Pas encore l’app ? Télécharge-la, puis <b>reviens sur cette page</b> et touche « Ouvrir dans Traverse » : le voyage s’ajoutera à tes voyages.',
+      aideForte: 'Rien ne s’est ouvert ? Traverse n’est sans doute pas encore installée : télécharge-la, puis reviens ici et touche à nouveau « Ouvrir dans Traverse ».',
+      jour1: 'JOUR 1', matin: 'MATIN', apresmidi: 'APRÈS-MIDI', soir: 'SOIR',
+      suite: function (n) { return n > 1 ? 'Les ' + n + ' autres jours t’attendent dans l’app.' : 'Le jour suivant t’attend dans l’app.'; },
+      introuvable: 'Ce voyage est introuvable. Le lien est peut-être incomplet : demande à la personne qui te l’a envoyé de le partager à nouveau.',
+      reseau: 'Impossible de charger le voyage. Vérifie ta connexion puis recharge la page.',
+      android: 'Traverse existe pour l’instant uniquement sur iPhone.',
+      decouvrir: 'Découvrir Traverse'
+    },
+    en: {
+      chargement: 'Opening the trip…', surtitre: 'A TRIP SHARED WITH YOU',
+      jours: function (n) { return n + (n > 1 ? ' days' : ' day'); },
+      activites: function (n) { return n + (n > 1 ? ' activities' : ' activity'); },
+      ouvrir: 'Open in Traverse', telecharger: 'Download Traverse',
+      aide: 'Don’t have the app yet? Download it, then <b>come back to this page</b> and tap “Open in Traverse”: the trip will be added to your trips.',
+      aideForte: 'Nothing opened? Traverse is probably not installed yet: download it, then come back here and tap “Open in Traverse” again.',
+      jour1: 'DAY 1', matin: 'MORNING', apresmidi: 'AFTERNOON', soir: 'EVENING',
+      suite: function (n) { return n > 1 ? 'The other ' + n + ' days are waiting in the app.' : 'The next day is waiting in the app.'; },
+      introuvable: 'This trip can’t be found. The link may be incomplete: ask the person who sent it to share it again.',
+      reseau: 'The trip could not be loaded. Check your connection and reload the page.',
+      android: 'Traverse is only available on iPhone for now.',
+      decouvrir: 'Discover Traverse'
+    },
+    es: {
+      chargement: 'Abriendo el viaje…', surtitre: 'TE HAN COMPARTIDO UN VIAJE',
+      jours: function (n) { return n + (n > 1 ? ' días' : ' día'); },
+      activites: function (n) { return n + (n > 1 ? ' actividades' : ' actividad'); },
+      ouvrir: 'Abrir en Traverse', telecharger: 'Descargar Traverse',
+      aide: '¿Aún no tienes la app? Descárgala, <b>vuelve a esta página</b> y toca «Abrir en Traverse»: el viaje se añadirá a tus viajes.',
+      aideForte: '¿No se ha abierto nada? Seguramente Traverse aún no está instalada: descárgala, vuelve aquí y toca otra vez «Abrir en Traverse».',
+      jour1: 'DÍA 1', matin: 'MAÑANA', apresmidi: 'TARDE', soir: 'NOCHE',
+      suite: function (n) { return n > 1 ? 'Los otros ' + n + ' días te esperan en la app.' : 'El día siguiente te espera en la app.'; },
+      introuvable: 'No se encuentra este viaje. Puede que el enlace esté incompleto: pide a quien te lo envió que lo comparta de nuevo.',
+      reseau: 'No se ha podido cargar el viaje. Comprueba tu conexión y recarga la página.',
+      android: 'Por ahora, Traverse solo está disponible en iPhone.',
+      decouvrir: 'Descubrir Traverse'
+    },
+    de: {
+      chargement: 'Reise wird geöffnet…', surtitre: 'EINE REISE FÜR DICH',
+      jours: function (n) { return n + (n > 1 ? ' Tage' : ' Tag'); },
+      activites: function (n) { return n + (n > 1 ? ' Aktivitäten' : ' Aktivität'); },
+      ouvrir: 'In Traverse öffnen', telecharger: 'Traverse laden',
+      aide: 'Noch keine App? Lade sie, <b>komm zurück auf diese Seite</b> und tippe auf „In Traverse öffnen“: Die Reise wird zu deinen Reisen hinzugefügt.',
+      aideForte: 'Nichts passiert? Traverse ist wohl noch nicht installiert: Lade die App, komm dann hierher zurück und tippe erneut auf „In Traverse öffnen“.',
+      jour1: 'TAG 1', matin: 'MORGEN', apresmidi: 'NACHMITTAG', soir: 'ABEND',
+      suite: function (n) { return n > 1 ? 'Die anderen ' + n + ' Tage warten in der App.' : 'Der nächste Tag wartet in der App.'; },
+      introuvable: 'Diese Reise wurde nicht gefunden. Der Link ist vielleicht unvollständig: Bitte die Person, die ihn geschickt hat, ihn noch einmal zu teilen.',
+      reseau: 'Die Reise konnte nicht geladen werden. Prüfe deine Verbindung und lade die Seite neu.',
+      android: 'Traverse gibt es vorerst nur für iPhone.',
+      decouvrir: 'Traverse entdecken'
+    },
+    it: {
+      chargement: 'Apertura del viaggio…', surtitre: 'UN VIAGGIO CONDIVISO CON TE',
+      jours: function (n) { return n + (n > 1 ? ' giorni' : ' giorno'); },
+      activites: function (n) { return n + ' attività'; },
+      ouvrir: 'Apri in Traverse', telecharger: 'Scarica Traverse',
+      aide: 'Non hai ancora l’app? Scaricala, <b>torna su questa pagina</b> e tocca «Apri in Traverse»: il viaggio si aggiungerà ai tuoi viaggi.',
+      aideForte: 'Non si è aperto nulla? Probabilmente Traverse non è ancora installata: scaricala, poi torna qui e tocca di nuovo «Apri in Traverse».',
+      jour1: 'GIORNO 1', matin: 'MATTINA', apresmidi: 'POMERIGGIO', soir: 'SERA',
+      suite: function (n) { return n > 1 ? 'Gli altri ' + n + ' giorni ti aspettano nell’app.' : 'Il giorno seguente ti aspetta nell’app.'; },
+      introuvable: 'Questo viaggio non si trova. Forse il link è incompleto: chiedi a chi te l’ha inviato di condividerlo di nuovo.',
+      reseau: 'Impossibile caricare il viaggio. Controlla la connessione e ricarica la pagina.',
+      android: 'Per ora Traverse è disponibile solo su iPhone.',
+      decouvrir: 'Scopri Traverse'
+    }
+  };
+
+  function langueDe(code) { code = String(code || '').slice(0, 2).toLowerCase(); return TEXTES[code] ? code : null; }
+  var langue = langueDe(navigator.language) || 'fr';
+  var t = TEXTES[langue];
+  document.documentElement.lang = langue;
+
+  function $(id) { return document.getElementById(id); }
+  function montrer(id) { $(id).classList.remove('cache'); }
+  function cacher(id) { $(id).classList.add('cache'); }
+  function https(uri) { return typeof uri === 'string' && /^https:\/\//.test(uri) ? uri : null; }
+
+  $('etat').textContent = t.chargement;
+
+  var code = (new URLSearchParams(location.search).get('c') || '').trim().toLowerCase();
+  if (!/^[2-9a-km-np-z]{8}$/.test(code)) { introuvable(t.introuvable); return; }
+
+  fetch(API, {
+    method: 'POST',
+    headers: { apikey: CLE, Authorization: 'Bearer ' + CLE, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code })
+  }).then(function (r) {
+    if (r.status >= 500) throw new Error('serveur');
+    return r.ok ? r.json() : null;
+  }).then(function (voyage) {
+    if (!voyage || voyage.v !== 1 || typeof voyage.destination !== 'string') { introuvable(t.introuvable); return; }
+    afficher(voyage);
+  }).catch(function () { introuvable(t.reseau); });
+
+  function introuvable(texte) {
+    cacher('etat');
+    $('introuvableTexte').textContent = texte;
+    $('introuvableBouton').textContent = t.decouvrir;
+    montrer('introuvable');
+  }
+
+  function afficher(voyage) {
+    var ville = voyage.destination.split(',')[0].trim();
+    var jours = Math.max(1, parseInt(voyage.jours, 10) || 1);
+    var journees = voyage.journees && typeof voyage.journees === 'object' ? voyage.journees : {};
+    var moments = ['matin', 'apresmidi', 'soir'];
+
+    var total = 0;
+    Object.keys(journees).forEach(function (n) {
+      var plan = journees[n] && journees[n].plan;
+      moments.forEach(function (m) { if (plan && Array.isArray(plan[m])) total += plan[m].length; });
+    });
+
+    document.title = (voyage.titre || ville) + ' · Traverse';
+    $('surtitre').textContent = t.surtitre;
+    $('titre').textContent = voyage.titre || ville;
+    $('resume').textContent = [ville, t.jours(jours), t.activites(total)].join(' · ');
+
+    // La couverture : la photo choisie si elle est en ligne, sinon la première photo du jour 1.
+    var jour1 = journees['1'] && journees['1'].plan ? journees['1'].plan : {};
+    var photo = voyage.couverture && voyage.couverture.kind === 'remote' ? https(voyage.couverture.uri) : null;
+    if (!photo) {
+      moments.some(function (m) {
+        return (jour1[m] || []).some(function (a) {
+          var p = a && a.remotePhoto;
+          if (p && p.kind !== 'logo' && https(p.uri)) { photo = p.uri; return true; }
+          return false;
+        });
+      });
+    }
+    if (photo) {
+      var couverture = $('couverture');
+      // Une photo qui ne répond plus laisse voir le dégradé, plutôt qu'une image cassée.
+      couverture.onerror = function () { cacher('couverture'); };
+      couverture.src = photo;
+      montrer('couverture');
+    }
+
+    // La première journée, en entier.
+    var bloc = $('jour1');
+    var titreJour = document.createElement('h2');
+    titreJour.textContent = t.jour1;
+    bloc.appendChild(titreJour);
+    moments.forEach(function (m) {
+      var liste = Array.isArray(jour1[m]) ? jour1[m] : [];
+      if (!liste.length) return;
+      var etiquette = document.createElement('p');
+      etiquette.className = 'moment ' + m;
+      etiquette.textContent = t[m];
+      bloc.appendChild(etiquette);
+      liste.forEach(function (a) {
+        if (!a || typeof a.title !== 'string') return;
+        var ligne = document.createElement('div');
+        ligne.className = 'activite';
+        var image = a.remotePhoto && https(a.remotePhoto.uri);
+        var vignette = document.createElement(image ? 'img' : 'div');
+        if (image) {
+          vignette.alt = ''; vignette.loading = 'lazy';
+          vignette.onerror = function () { var vide = document.createElement('div'); vide.className = 'vide'; this.replaceWith(vide); };
+          vignette.src = image;
+        } else { vignette.className = 'vide'; }
+        ligne.appendChild(vignette);
+        var texte = document.createElement('div');
+        var nom = document.createElement('b');
+        nom.textContent = typeof a.titleLisible === 'string' && a.titleLisible ? a.titleLisible : a.title;
+        texte.appendChild(nom);
+        if (typeof a.place === 'string' && a.place) {
+          var lieu = document.createElement('span');
+          lieu.textContent = a.place;
+          texte.appendChild(lieu);
+        }
+        ligne.appendChild(texte);
+        bloc.appendChild(ligne);
+      });
+    });
+    if (jours > 1) $('suite').textContent = t.suite(jours - 1);
+
+    // Les boutons.
+    var ouvrir = $('ouvrir');
+    ouvrir.textContent = t.ouvrir;
+    ouvrir.href = 'traverse://partage/' + code;
+    $('telechargerTexte').textContent = t.telecharger;
+    $('aide').innerHTML = t.aide; // texte de la page, jamais du voyage
+
+    var ua = navigator.userAgent || '';
+    if (/Android/i.test(ua)) { $('android').textContent = t.android; montrer('android'); }
+
+    // Si l'app n'est pas installée, Safari reste sur la page : après un moment, on le dit plus fort —
+    // en question, car la fenêtre « Ouvrir dans Traverse ? » de Safari laisse aussi la page visible.
+    ouvrir.addEventListener('click', function () {
+      var parti = false;
+      function quitte() { parti = true; }
+      document.addEventListener('visibilitychange', quitte, { once: true });
+      window.addEventListener('pagehide', quitte, { once: true });
+      setTimeout(function () {
+        if (parti || document.visibilityState !== 'visible') return;
+        var aide = $('aide');
+        aide.textContent = t.aideForte;
+        aide.classList.add('forte');
+      }, 1800);
+    });
+
+    cacher('etat');
+    montrer('voyage');
+  }
+})();
+</script>
+</body>
+</html>

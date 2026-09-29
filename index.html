@@ -41,18 +41,18 @@
 <body>
 
 <h1>Politique de confidentialité de Traverse</h1>
-<p class="maj">Dernière mise à jour : 28 septembre 2026</p>
+<p class="maj">Dernière mise à jour : 29 septembre 2026</p>
 
 <p>Traverse est une application mobile qui aide à préparer un voyage : vous indiquez une destination, des dates et vos envies, et l'application vous propose un programme jour par jour.</p>
 
-<p>Cette page explique quelles données Traverse utilise, pourquoi, et où elles vont. Le principe de l'application est simple : <strong>il n'y a pas de compte, et vos voyages restent sur votre téléphone.</strong></p>
+<p>Cette page explique quelles données Traverse utilise, pourquoi, et où elles vont. Le principe de l'application est simple : <strong>il n'y a pas de compte, et vos voyages restent sur votre téléphone</strong> — sauf celui que vous choisissez de partager avec quelqu'un (voir « Le partage d'un voyage »).</p>
 
 <h2>1. Aucun compte, aucune identification</h2>
 <p>Traverse ne demande ni inscription, ni adresse e-mail, ni mot de passe, ni numéro de téléphone. Vous n'avez pas de compte chez nous, et nous ne détenons aucun fichier de clients.</p>
 <p>Nous ne vous demandons ni votre nom, ni votre adresse, ni votre date de naissance. L'application ne demande pas non plus l'accès à votre position (GPS), à vos contacts, ni à votre agenda.</p>
 
 <h2>2. Ce qui reste sur votre téléphone</h2>
-<p>Les informations suivantes sont enregistrées <strong>uniquement dans la mémoire de votre iPhone</strong>, dans l'espace réservé à l'application. Elles ne sont envoyées à aucun serveur et nous n'y avons pas accès :</p>
+<p>Les informations suivantes sont enregistrées <strong>uniquement dans la mémoire de votre iPhone</strong>, dans l'espace réservé à l'application. Elles ne sont envoyées à aucun serveur et nous n'y avons pas accès, sauf si vous partagez un voyage (voir plus bas) :</p>
 <ul>
   <li>vos voyages : titre, destination, dates de début et de fin, nombre de voyageurs, image de couverture, voyages terminés ;</li>
   <li>les programmes générés et les activités que vous avez cochées ou ajoutées vous-même ;</li>
@@ -99,18 +99,26 @@
       <td>Le nom de la ville, le pays et la langue de l'application.</td>
       <td>Proposer de vraies photos de la destination comme image de couverture.</td>
     </tr>
+    <tr>
+      <td>Partager un voyage (seulement si vous touchez « Partager »)</td>
+      <td>Le titre du voyage, sa destination, son nombre de jours, vos envies, le rythme, le budget, le type de compagnons, le nombre de voyageurs, la langue, et les activités de chaque jour avec leurs photos.</td>
+      <td>Créer le lien que vous envoyez : la personne qui l'ouvre reçoit le même voyage.</td>
+    </tr>
   </tbody>
 </table>
 </div>
 
-<p><strong>Ce qui n'est jamais envoyé :</strong> aucun identifiant personnel ou d'appareil, aucun nom, aucune adresse e-mail, aucune photo de votre galerie, aucune position GPS, ni le titre que vous donnez à votre voyage. La seule position qui part est celle d'un lieu que vous avez choisi dans la liste — un magasin, un restaurant — jamais la vôtre.</p>
+<p><strong>Ce qui n'est jamais envoyé :</strong> aucun identifiant personnel ou d'appareil, aucun nom, aucune adresse e-mail, aucune photo de votre galerie, aucune position GPS, ni le titre que vous donnez à votre voyage (sauf si vous le partagez). La seule position qui part est celle d'un lieu que vous avez choisi dans la liste — un magasin, un restaurant — jamais la vôtre.</p>
 
 <p>Ces demandes ne sont associées à aucune personne. Nous ne pouvons pas savoir qui a demandé quoi : rien ne permet de relier une demande à un utilisateur, ni de relier deux demandes entre elles.</p>
+
+<h3>Le partage d'un voyage</h3>
+<p>Si vous touchez « Partager » sur un voyage, l'application envoie une copie de ce voyage à notre serveur, chez Supabase : son titre, sa destination, son nombre de jours, vos envies, et les activités de chaque jour avec leurs photos. <strong>Ni vos dates, ni les activités que vous avez cochées, ni une photo de votre galerie ne sont envoyées.</strong> Le voyage est rangé sous un code de huit caractères tiré au hasard, qui figure dans le lien que vous envoyez : toute personne qui a ce lien peut voir le voyage sur traverse-app.fr et l'ajouter dans son application. Le voyage partagé n'est lié à aucune personne ni à aucun appareil, et personne ne peut lister les voyages partagés. Le titre du voyage part tel quel : évitez d'y écrire une information personnelle.</p>
 
 <h2>4. Les services tiers réellement utilisés</h2>
 
 <h3>Supabase — hébergement des fonctions serveur</h3>
-<p>Les demandes décrites ci-dessus sont traitées par des fonctions hébergées chez Supabase. Elles traitent la demande et renvoient la réponse. Pour aller plus vite et solliciter moins les services extérieurs, Supabase garde aussi des <strong>informations sur les lieux, jamais sur les personnes</strong> : la carte des lieux d'une ville (pendant une semaine), l'auteur et la licence des photos déjà utilisées, et une copie des photos de rue retenues, dont l'adresse d'origine expire. <strong>Aucune de ces données ne concerne un utilisateur</strong> : ni vos destinations, ni vos programmes, ni vos préférences ne sont enregistrés. Les photos sont téléchargées par votre téléphone depuis ce stockage ou depuis Wikimedia. Comme tout hébergeur, Supabase produit des journaux techniques temporaires (date de l'appel, adresse IP de l'appareil, code de réponse) qui servent uniquement au bon fonctionnement et à la sécurité du service.<br>
+<p>Les demandes décrites ci-dessus sont traitées par des fonctions hébergées chez Supabase. Elles traitent la demande et renvoient la réponse. Pour aller plus vite et solliciter moins les services extérieurs, Supabase garde aussi des <strong>informations sur les lieux, jamais sur les personnes</strong> : la carte des lieux d'une ville (pendant une semaine), l'auteur et la licence des photos déjà utilisées, et une copie des photos de rue retenues, dont l'adresse d'origine expire. <strong>Aucune de ces données ne concerne un utilisateur</strong> : ni vos destinations, ni vos programmes, ni vos préférences ne sont enregistrés — à la seule exception d'un voyage que vous partagez, décrit plus haut. Les photos sont téléchargées par votre téléphone depuis ce stockage ou depuis Wikimedia. Comme tout hébergeur, Supabase produit des journaux techniques temporaires (date de l'appel, adresse IP de l'appareil, code de réponse) qui servent uniquement au bon fonctionnement et à la sécurité du service.<br>
 <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Politique de confidentialité de Supabase</a></p>
 
 <h3>OpenRouter — intelligence artificielle</h3>
@@ -147,6 +155,7 @@
 <ul>
   <li><strong>Sur votre téléphone :</strong> vos voyages et vos réglages sont conservés aussi longtemps que vous le souhaitez. Ils sont effacés lorsque vous supprimez le voyage concerné, ou définitivement lorsque vous désinstallez l'application.</li>
   <li><strong>Sur nos serveurs :</strong> rien de ce qui vous concerne n'est conservé. Les demandes sont traitées puis oubliées ; aucune base de données n'enregistre vos destinations ni vos programmes. Seules des informations sur les lieux sont gardées : la carte d'une ville une semaine, les crédits et copies des photos tant qu'elles servent.</li>
+  <li><strong>Voyages partagés :</strong> conservés 12 mois après le partage, pour que le lien continue de fonctionner, puis supprimés automatiquement. Nous supprimons plus tôt un voyage partagé sur simple demande, en nous envoyant son lien.</li>
   <li><strong>Comptages anonymes du site traverse-app.fr :</strong> conservés 13 mois au plus, puis supprimés automatiquement.</li>
   <li><strong>Journaux techniques de l'hébergeur :</strong> conservés quelques jours au maximum par Supabase, puis supprimés automatiquement.</li>
   <li><strong>Abonnement :</strong> les informations liées à votre achat sont conservées par Apple et RevenueCat selon leurs propres politiques, le temps nécessaire à la gestion de l'abonnement et aux obligations comptables.</li>
@@ -156,7 +165,7 @@
 <p>Les fonctions serveur de Traverse sont hébergées en Irlande, dans l'Union européenne. Certains des services qu'elles utilisent sont en revanche établis aux États-Unis : c'est le cas d'OpenRouter (intelligence artificielle), de RevenueCat (gestion de l'abonnement), de la Wikimedia Foundation (photos) et de Meta Platforms (Mapillary, photos de rue). Geoapify (lieux et adresses) et Panoramax (photos de rue), eux, sont établis dans l'Union européenne. Les données transmises à ces services sont celles décrites plus haut : elles ne comportent aucune information permettant de vous identifier. Ces transferts s'effectuent dans le cadre des garanties prévues par le RGPD, notamment les clauses contractuelles types de la Commission européenne.</p>
 
 <h2>7. Vos droits</h2>
-<p>Comme Traverse ne détient aucune donnée vous concernant sur ses serveurs, il n'y a rien à consulter, corriger ou supprimer chez nous : <strong>vous supprimez vos données vous-même</strong>, en effaçant un voyage dans l'application ou en la désinstallant.</p>
+<p>Comme Traverse ne détient aucune donnée vous concernant sur ses serveurs, il n'y a rien à consulter, corriger ou supprimer chez nous : <strong>vous supprimez vos données vous-même</strong>, en effaçant un voyage dans l'application ou en la désinstallant. Seule exception : un voyage que vous avez partagé, que nous supprimons sur simple demande accompagnée de son lien.</p>
 <p>Conformément au Règlement général sur la protection des données (RGPD), vous disposez néanmoins d'un droit d'accès, de rectification, d'effacement, de limitation et d'opposition. Pour l'exercer, ou pour toute question, écrivez-nous à l'adresse indiquée ci-dessous. Vous pouvez également introduire une réclamation auprès de la CNIL (<a href="https://www.cnil.fr" target="_blank" rel="noopener">cnil.fr</a>).</p>
 <p>Pour vos achats, adressez-vous à Apple (gestion et remboursement des abonnements de l'App Store).</p>
 
