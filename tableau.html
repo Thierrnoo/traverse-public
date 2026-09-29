@@ -98,7 +98,7 @@
 
   .donut { display: flex; align-items: center; justify-content: center; gap: 1.6rem; flex-wrap: wrap; padding: .4rem 0 .2rem; }
   .donut svg { width: 210px; height: 210px; flex: none; }
-  .donut ul { list-style: none; margin: 0; padding: 0; min-width: 12rem; }
+  .donut ul { list-style: none; margin: 0; padding: 0; min-width: 14.5rem; }
   .donut li { display: flex; align-items: center; gap: .55rem; font-size: .85rem; padding: .28rem 0; color: var(--doux); }
   .donut li i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .donut li span { flex: 1; }
@@ -166,16 +166,30 @@
   var CLE_PUBLIQUE = 'sb_publishable_jkKmMsynYkz35e0ACQouZA_6jQERGod';
   var MEMO = 'traverse-stats-cle';                 // la même clé que traverse-app.fr/stats
   var MEMO_APPLE = 'traverse-apple-jours-v1';      // les jours Apple déjà publiés (ils ne changent plus)
+  var MEMO_SOURCES = 'traverse-apple-sources-v1';  // les rapports d'analyse d'Apple déjà lus (idem)
   var HISTOIRE = 90;
   /** Le lien de la bio ne compte qu'à partir de là (remise à zéro du 29 sept., comme sur /stats). */
   var DEPART = { jour: '2026-09-29', heure: 10 };
   var DEMO = /[?&]demo\b/.test(location.search);
   /** Couleurs des pays, dans l'ordre de la palette validée ; la cinquième tranche est « Autres ». */
   var COULEURS_PAYS = ['var(--bleu)', 'var(--orange)', 'var(--aqua)', 'var(--jaune)'];
+  /**
+   * Les sources d'Apple (« Source Type » de ses rapports), en français, avec une couleur fixe par
+   * source, dans l'ordre de la palette validée. Tout ce qui n'est pas reconnu va dans « Autre ».
+   */
+  var SOURCES = [
+    { re: /search/i, nom: 'Recherche App Store', couleur: 'var(--bleu)' },
+    { re: /web/i, nom: 'Site web', couleur: 'var(--orange)' },
+    { re: /browse/i, nom: 'Navigation App Store', couleur: 'var(--aqua)' },
+    { re: /app ref/i, nom: 'Autre app', couleur: 'var(--jaune)' },
+    { re: /./, nom: 'Autre', couleur: 'var(--autres)' }
+  ];
 
   var $ = function (id) { return document.getElementById(id); };
-  var lire = function (k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
-  var garder = function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} };
+  // En mode exemple, rien ne se lit ni ne s'écrit dans ce navigateur : les chiffres inventés
+  // ne doivent jamais se mêler aux vrais jours gardés.
+  var lire = function (k) { if (DEMO) return ''; try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
+  var garder = function (k, v) { if (DEMO) return; try { localStorage.setItem(k, v); } catch (e) {} };
   var fmt = function (n) { return Math.round(n).toLocaleString('fr-FR'); };
   var euros = function (n, dec) { return n.toLocaleString('fr-FR', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }) + ' €'; };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -191,7 +205,7 @@
 
   // ------------------------------------------------------------------------------------------
   // Les données, une entrée par source. etat : chargement | ok | absente | erreur.
-  var D = { lien: { etat: 'chargement' }, apple: { etat: 'chargement' }, rc: { etat: 'chargement' }, partages: { etat: 'chargement' } };
+  var D = { lien: { etat: 'chargement' }, apple: { etat: 'chargement' }, sources: { etat: 'chargement' }, rc: { etat: 'chargement' }, partages: { etat: 'chargement' } };
   var cle = '';
 
   // Une source de la page, ramenée à une même forme : jours de debut à fin, valeur(j).
@@ -209,6 +223,13 @@
   // ------------------------------------------------------------------------------------------
   // Les cartes : une carte = une question.
   var CARTES = [
+    { id: 'utilisateurs', section: 'acquisition', titre: 'Utilisateurs', source: 'rc', graphe: 'customers_new', type: 'barres', couleur: 'var(--bleu)',
+      modes: [['cumul', 'Cumulés'], ['jour', 'Par jour'], ['actifs', 'Actifs']], modeDefaut: 'cumul',
+      unite: ['nouvel utilisateur', 'nouveaux utilisateurs'], uniteCumul: ['utilisateur', 'utilisateurs'],
+      pied: 'RevenueCat · un utilisateur = un téléphone qui a ouvert l’app (tes téléphones de test compris) · « Actifs » : ceux qui l’ont ouverte ce jour-là · jours UTC' },
+    { id: 'sources', section: 'acquisition', titre: 'Sources d’acquisition', source: 'sources', type: 'sources',
+      modes: [['camembert', 'Camembert'], ['jour', 'Par jour']], modeDefaut: 'camembert',
+      pied: 'Rapports d’analyse d’Apple · premiers téléchargements selon leur provenance · un TikTok vu puis « Traverse » cherché compte en « Recherche App Store » · jours UTC' },
     { id: 'telechargements', section: 'acquisition', titre: 'Téléchargements', source: 'apple', type: 'barres', couleur: 'var(--orange)',
       modes: true, ventilation: 'Pays', unite: ['téléchargement', 'téléchargements'],
       pied: 'App Store Connect · premiers téléchargements, sans les réinstallations ni les mises à jour · jours d’Apple (heure de Californie), publiés le lendemain' },
@@ -216,9 +237,6 @@
       pied: 'Pays du compte App Store de la personne qui télécharge' },
     { id: 'lien', section: 'acquisition', titre: 'Lien de la bio', source: 'lien', type: 'lien',
       pied: 'traverse-app.fr/app · compté depuis le 29/09 à 10 h · <a href="stats">le détail</a>' },
-    { id: 'ouvertures', section: 'acquisition', titre: 'Premières ouvertures', source: 'rc', graphe: 'customers_new', type: 'barres', couleur: 'var(--bleu)',
-      modes: true, unite: ['nouvel utilisateur', 'nouveaux utilisateurs'],
-      pied: 'RevenueCat · nouveaux utilisateurs, comptés à la première ouverture de l’app · jours UTC' },
     { id: 'abonnes', section: 'monetisation', titre: 'Abonnés actifs', source: 'rc', graphe: 'actives', type: 'aire', couleur: 'var(--aqua)',
       unite: ['abonné', 'abonnés'], pied: 'RevenueCat · abonnements payants en cours, jour par jour' },
     { id: 'essais', section: 'monetisation', titre: 'Essais actifs', source: 'rc', graphe: 'trials', type: 'aire', couleur: 'var(--bleu)',
@@ -237,11 +255,14 @@
 
   function construire() {
     CARTES.forEach(function (c) {
-      c.etat = { n: 30, du: '', au: '', mode: 'jour', ventil: false };
+      c.etat = { n: 30, du: '', au: '', mode: c.modeDefaut || 'jour', ventil: false };
       var el = document.createElement('article');
       el.className = 'carte'; el.id = 'c-' + c.id;
       var h = '<div class="tete"><h3>' + c.titre + '</h3>';
-      if (c.modes) h += '<div class="pilules" data-role="modes"><button class="pil" data-mode="jour" aria-pressed="true">Par jour</button><button class="pil" data-mode="cumul" aria-pressed="false">Cumulés</button></div>';
+      var modes = c.modes === true ? [['jour', 'Par jour'], ['cumul', 'Cumulés']] : c.modes;
+      if (modes) h += '<div class="pilules" data-role="modes">' + modes.map(function (m) {
+        return '<button class="pil" data-mode="' + m[0] + '" aria-pressed="' + (m[0] === c.etat.mode) + '">' + m[1] + '</button>';
+      }).join('') + '</div>';
       if (c.ventilation) h += '<span class="sep"></span><div class="pilules"><button class="pil" data-ventil="1" aria-pressed="false">' + c.ventilation + '</button></div>';
       h += '<div class="pilules periode" data-role="periode">' +
         [7, 30, 90].map(function (n) { return '<button class="pil" data-n="' + n + '" aria-pressed="' + (n === 30) + '">' + n + 'j</button>'; }).join('') +
@@ -329,7 +350,8 @@
       return;
     }
     if (s.etat !== 'ok') {
-      corps.innerHTML = '<div class="vide"><div>' + (s.etat === 'absente' ? '<strong>À brancher</strong>' : '<strong>Indisponible</strong>') + esc(s.message || '') + '</div></div>';
+      var titre = s.etat === 'absente' ? 'À brancher' : s.etat === 'attente' ? 'En attente d’Apple' : 'Indisponible';
+      corps.innerHTML = '<div class="vide"><div><strong>' + titre + '</strong>' + esc(s.message || '') + '</div></div>';
       return;
     }
     corps.innerHTML = '<div class="hero"><b></b><span class="sous"></span></div>' +
@@ -341,6 +363,32 @@
     hero.style.color = c.couleur || 'var(--encre)';
 
     if (c.type === 'donut') { rendreDonut(c, s, jours, corps); return; }
+
+    if (c.type === 'sources') {
+      var parSource = SOURCES.map(function (src) { return { nom: src.nom, couleur: src.couleur, valeurs: jours.map(function (j) { return s.parSource(j)[src.nom] || 0; }) }; });
+      var totalS = parSource.reduce(function (t, se) { return t + se.valeurs.reduce(add, 0); }, 0);
+      if (st.mode === 'camembert') {
+        dessinerDonut(c, s, jours, corps, parSource.map(function (se) { return { nom: se.nom, couleur: se.couleur, v: se.valeurs.reduce(add, 0) }; }), totalS);
+        return;
+      }
+      hero.textContent = fmt(totalS);
+      sous.innerHTML = pluriel(totalS, ['téléchargement', 'téléchargements']) + ' ' + duree(c, jours) + jusque(c, s);
+      var visiblesS = parSource.filter(function (se) { return se.valeurs.some(function (v) { return v > 0; }); });
+      graphe(zone, { type: 'barres', empile: true, jours: jours, series: visiblesS.length ? visiblesS : parSource.slice(0, 1) });
+      legende.innerHTML = visiblesS.map(function (se) { return '<span><i style="background:' + se.couleur + '"></i>' + esc(se.nom) + '</span>'; }).join('');
+      return;
+    }
+
+    if (c.id === 'utilisateurs' && st.mode === 'actifs') {
+      var sa = D.rc.series && D.rc.series.customers_active;
+      if (!sa || sa.etat !== 'ok') { corps.innerHTML = '<div class="vide">' + esc((sa && sa.message) || 'RevenueCat n’a pas renvoyé les utilisateurs actifs.') + '</div>'; return; }
+      var actifs = jours.map(function (j) { return sa.valeur(j) || 0; });
+      var moyenne = actifs.reduce(add, 0) / (actifs.length || 1), pic = Math.max.apply(null, actifs.concat(0));
+      hero.textContent = moyenne < 10 ? moyenne.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) : fmt(moyenne);
+      sous.innerHTML = 'utilisateurs actifs par jour en moyenne ' + duree(c, jours) + ' · ' + fmt(pic) + ' au plus haut';
+      graphe(zone, { type: 'barres', jours: jours, series: [{ nom: 'Actifs', couleur: c.couleur, valeurs: actifs }], unite: ['utilisateur actif', 'utilisateurs actifs'] });
+      return;
+    }
 
     if (c.type === 'lien') {
       var vis = jours.map(function (j) { return s.jour(j).visites; }), sto = jours.map(function (j) { return s.jour(j).store; });
@@ -388,9 +436,12 @@
     if (st.mode === 'cumul') {
       var avantFenetre = somme(s, suite(s.debut, plusJours(jours[0], -1)));
       var cumul = []; parJour.reduce(function (t, v) { t += v; cumul.push(t); return t; }, avantFenetre);
+      // « au total » quand l'histoire chargée commence avant le premier chiffre (l'app est plus jeune que 90 jours).
+      var premierJour = suite(s.debut, s.fin).find(function (j) { return s.valeur(j) > 0; });
+      var depuis = premierJour && premierJour > s.debut ? 'au total' : 'depuis le ' + court(s.debut);
       hero.textContent = fmt(cumul[cumul.length - 1] || 0);
-      sous.innerHTML = pluriel(cumul[cumul.length - 1], c.unite) + ' depuis le ' + court(s.debut) + ' · <span class="' + (total ? 'hausse' : '') + '">+' + fmt(total) + ' ' + duree(c, jours) + '</span>' + jusque(c, s);
-      graphe(zone, { type: 'aire', jours: jours, series: [{ nom: 'Cumul', couleur: c.couleur, valeurs: cumul }], unite: c.unite });
+      sous.innerHTML = pluriel(cumul[cumul.length - 1], c.uniteCumul || c.unite) + ' ' + depuis + ' · <span class="' + (total ? 'hausse' : '') + '">+' + fmt(total) + ' ' + duree(c, jours) + '</span>' + jusque(c, s);
+      graphe(zone, { type: 'aire', jours: jours, series: [{ nom: 'Cumul', couleur: c.couleur, valeurs: cumul }], unite: c.uniteCumul || c.unite });
       return;
     }
     hero.textContent = fmt(total);
@@ -419,6 +470,10 @@
     var items = top.map(function (code, k) { return { nom: pays(code), couleur: COULEURS_PAYS[k], v: parPays[code] || 0 }; });
     var reste = total - items.reduce(function (t, it) { return t + it.v; }, 0);
     items.push({ nom: 'Autres', couleur: 'var(--autres)', v: reste });
+    dessinerDonut(c, s, jours, corps, items, total);
+  }
+
+  function dessinerDonut(c, s, jours, corps, items, total) {
     corps.innerHTML = '';
     if (!total) { corps.innerHTML = '<div class="vide">Aucun téléchargement ' + duree(c, jours) + '.</div>'; return; }
     var S = 210, R = 100, r = 62, cx = S / 2, cy = S / 2, a = -Math.PI / 2, h = '';
@@ -437,7 +492,7 @@
     h += '<text x="' + cx + '" y="' + (cy + 4) + '" text-anchor="middle" style="font-size:28px;font-weight:750;fill:var(--encre)">' + fmt(total) + '</text>';
     h += '<text x="' + cx + '" y="' + (cy + 24) + '" text-anchor="middle" style="font-size:12px;fill:var(--gris)">' + pluriel(total, ['téléchargement', 'téléchargements']) + '</text>';
     corps.innerHTML = '<div class="hero"><span class="sous">' + duree(c, jours).replace(/^sur/, 'Sur') + jusque(c, s) + '</span></div>' +
-      '<div class="donut"><svg viewBox="0 0 ' + S + ' ' + S + '" role="img" aria-label="Téléchargements par pays">' + h + '</svg><ul>' +
+      '<div class="donut"><svg viewBox="0 0 ' + S + ' ' + S + '" role="img" aria-label="' + esc(c.titre) + '">' + h + '</svg><ul>' +
       visibles.map(function (it) { return '<li><i style="background:' + it.couleur + '"></i><span>' + esc(it.nom) + '</span><b>' + fmt(it.v) + '</b><em>' + Math.round(100 * it.v / total) + ' %</em></li>'; }).join('') +
       '</ul></div>';
   }
@@ -624,6 +679,34 @@
     };
   }
 
+  /**
+   * Les sources, à partir des rapports gardés. Apple peut republier un jour dans un rapport plus
+   * récent : pour chaque jour, on prend le rapport le plus récent qui le contient, sans additionner.
+   */
+  function sourceSources(memo) {
+    var parJour = {}, publieLe = {};
+    Object.keys(memo).forEach(function (id) {
+      var inst = memo[id];
+      Object.keys(inst.jours || {}).forEach(function (j) {
+        if (!publieLe[j] || inst.pd > publieLe[j]) { publieLe[j] = inst.pd; parJour[j] = inst.jours[j]; }
+      });
+    });
+    var dates = Object.keys(parJour).sort();
+    if (!dates.length) return { etat: 'attente', message: 'Apple n’a encore publié aucun téléchargement dans ses rapports.' };
+    var fin = dates[dates.length - 1], debut = plusJours(fin, -(HISTOIRE - 1));
+    var classe = function (j) {
+      var brut = parJour[j] || {}, o = {};
+      Object.keys(brut).forEach(function (k) {
+        var src = SOURCES.find(function (x) { return x.re.test(k); });
+        o[src.nom] = (o[src.nom] || 0) + brut[k];
+      });
+      return o;
+    };
+    return { etat: 'ok', debut: debut, fin: fin, jusque: true, parSource: classe,
+      valeur: function (j) { var o = classe(j); return Object.keys(o).reduce(function (t, k) { return t + o[k]; }, 0); } };
+  }
+  function memoSources() { try { return JSON.parse(lire(MEMO_SOURCES) || '{}'); } catch (e) { return {}; } }
+
   function sourceParJour(parJour, tz) {
     var fin = jourDans(tz), debut = plusJours(fin, -(HISTOIRE - 1));
     return { etat: 'ok', debut: debut, fin: fin, valeur: function (j) { return parJour[j] || 0; } };
@@ -641,6 +724,18 @@
       D.apple = a.erreur && !Object.keys(memo).length ? { etat: 'erreur', message: a.erreur } : sourceApple(memo);
       if (a.erreur && D.apple.etat === 'ok') D.apple.alerte = a.erreur;
     } else D.apple = { etat: 'erreur', message: a.erreur || 'Apple ne répond pas pour l’instant.' };
+
+    var so = r.sources || {};
+    if (so.absente) D.sources = { etat: 'absente', message: 'Ajoute la clé App Store Connect dans Supabase.' };
+    else if (so.aCommander) D.sources = { etat: 'absente', message: 'Il reste à commander les rapports d’analyse à Apple, une seule fois, avec une clé Admin.' };
+    else if (so.enAttente) D.sources = { etat: 'attente', message: 'Les rapports sont commandés : Apple publie les premiers 1 à 2 jours après la commande.' };
+    else if (so.instances) {
+      var ms = memoSources(), limiteS = jourDans('UTC', HISTOIRE + 5);
+      Object.keys(so.instances).forEach(function (id) { ms[id] = so.instances[id]; });
+      Object.keys(ms).forEach(function (id) { if (!ms[id] || ms[id].pd < limiteS) delete ms[id]; });
+      garder(MEMO_SOURCES, JSON.stringify(ms));
+      D.sources = sourceSources(ms);
+    } else D.sources = { etat: 'erreur', message: so.erreur || 'Les rapports d’analyse d’Apple ne répondent pas pour l’instant.' };
 
     var rc = r.revenuecat || {};
     if (rc.absente) D.rc = { etat: 'absente', message: 'Ajoute une clé secrète RevenueCat dans Supabase pour voir abonnés, essais et revenu.' };
@@ -688,13 +783,13 @@
       var memo = memoApple(), besoin = [];
       for (var i = 1; i <= HISTOIRE; i++) { var j = jourDans('America/Los_Angeles', i); if (!memo[j]) besoin.push(j); }
       try {
-        var rf = await appeler('/functions/v1/tableau-de-bord', { cle: cle, apple: besoin });
+        var rf = await appeler('/functions/v1/tableau-de-bord', { cle: cle, apple: besoin, sources: Object.keys(memoSources()) });
         if (rf.status === 404) throw new Error('La fonction « tableau-de-bord » n’est pas encore en ligne sur Supabase.');
         if (!rf.ok) throw new Error('La fonction « tableau-de-bord » répond ' + rf.status + '.');
         recevoir(await rf.json());
       } catch (e) {
         var m = e && e.message && /tableau-de-bord/.test(e.message) ? e.message : 'La fonction « tableau-de-bord » ne répond pas (pas encore en ligne ?).';
-        D.apple = { etat: 'erreur', message: m }; D.rc = { etat: 'erreur', message: m }; D.partages = { etat: 'erreur', message: m };
+        D.apple = { etat: 'erreur', message: m }; D.sources = { etat: 'erreur', message: m }; D.rc = { etat: 'erreur', message: m }; D.partages = { etat: 'erreur', message: m };
       }
       $('maj').textContent = 'Traverse · à jour à ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
       CARTES.forEach(rendre);
@@ -727,9 +822,17 @@
       }
     });
     D.lien = sourceLien(lignes);
+    var instances = {};
+    utc.forEach(function (j, i) {
+      var t = Math.round(20 + i * 1.5);
+      instances['demo-' + j] = { pd: plusJours(j, 1), jours: {} };
+      instances['demo-' + j].jours[j] = { 'App Store search': Math.round(t * 0.55), 'Web referrer': Math.round(t * 0.18), 'App Store browse': Math.round(t * 0.14), 'App referrer': Math.round(t * 0.1), 'Unavailable': Math.round(t * 0.03) };
+    });
     recevoir({
       apple: { jours: apple },
+      sources: { instances: instances },
       revenuecat: { series: {
+        customers_active: serie(function (j, i) { return Math.round(30 + i * 1.2 + hasard() * 25); }).map(function (v, i) { return { jour: utc[i], v: v }; }),
         actives: serie(function () { act += Math.round(hasard() * 6 - 1); return { v: act }; }).map(function (p, i) { return { jour: utc[i], v: p.v }; }),
         trials: serie(function () { es = Math.max(5, es + Math.round(hasard() * 8 - 3.5)); return es; }).map(function (v, i) { return { jour: utc[i], v: v }; }),
         trials_new: serie(function () { return Math.round(4 + hasard() * 14); }).map(function (v, i) { return { jour: utc[i], v: v }; }),
