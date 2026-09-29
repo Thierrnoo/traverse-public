@@ -26,7 +26,7 @@
     --fond: #11151b; --carte: #1b2129; --trait: rgba(255,255,255,.07); --grille: #2b323c;
     --encre: #f3f5f7; --doux: #c5ccd6; --gris: #8b95a3; --pale: #5d6673;
     --accent: #d9772b;
-    --orange: #d95926; --bleu: #3987e5; --aqua: #199e70; --jaune: #c98500; --violet: #9085e9; --magenta: #d55181; --autres: #5d6673;
+    --orange: #d95926; --bleu: #3987e5; --aqua: #199e70; --jaune: #c98500; --violet: #9085e9; --magenta: #d55181; --rouge: #e66767; --autres: #5d6673;
     --hausse: #2fc36b; --baisse: #ff6b6b;
   }
   * { box-sizing: border-box; }
@@ -227,6 +227,8 @@
       modes: true, unite: ['essai', 'essais'], pied: 'RevenueCat · essais démarrés · jours UTC' },
     { id: 'revenu', section: 'monetisation', titre: 'Revenu', source: 'rc', graphe: 'revenue', type: 'barres', couleur: 'var(--jaune)', euros: true,
       pied: 'RevenueCat · revenu brut, avant la part d’Apple et les taxes · jours UTC' },
+    { id: 'remboursements', section: 'monetisation', titre: 'Taux de remboursement', source: 'rc', graphe: 'refund_rate', type: 'remboursement', couleur: 'var(--rouge)',
+      pied: 'RevenueCat · achats payants remboursés ÷ achats payants (essais exclus), comptés au jour de l’achat : un jour passé peut encore bouger · jours UTC' },
     { id: 'partages', section: 'usage', titre: 'Voyages partagés', source: 'partages', type: 'barres', couleur: 'var(--magenta)',
       modes: true, unite: ['voyage partagé', 'voyages partagés'], pied: 'Supabase · liens de partage créés depuis l’app · heure de Paris' }
   ];
@@ -348,6 +350,18 @@
         ecart(tv, prec ? somme(s, prec, function (v) { return v.visites; }) : null, libelleAvant);
       graphe(zone, { type: 'barres', jours: jours, series: [{ nom: 'Visites', couleur: 'var(--bleu)', valeurs: vis }, { nom: 'Vers l’App Store', couleur: 'var(--orange)', valeurs: sto }] });
       legende.innerHTML = '<span><i style="background:var(--bleu)"></i>Visites</span><span><i style="background:var(--orange)"></i>Vers l’App Store</span>';
+      return;
+    }
+
+    if (c.type === 'remboursement') {
+      var lu = lireRemboursements(s), jr = jours.map(lu);
+      var nr = jr.reduce(function (t, x) { return t + x.remb; }, 0), nt = jr.reduce(function (t, x) { return t + x.trans; }, 0);
+      var taux = function (r, t) { return (100 * r / t).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %'; };
+      hero.textContent = nt ? taux(nr, nt) : '– %';
+      sous.innerHTML = fmt(nr) + ' ' + pluriel(nr, ['remboursement', 'remboursements']) + ' / ' + fmt(nt) + ' ' + pluriel(nt, ['transaction', 'transactions']) + ' ' + duree(c, jours) +
+        (nt ? '' : ' · aucun achat payant pour l’instant');
+      graphe(zone, { type: 'barres', jours: jours, series: [{ nom: 'Remboursements', couleur: c.couleur, valeurs: jr.map(function (x) { return x.remb; }) }],
+        bulle: function (i) { var x = jr[i]; return '<b>' + fmt(x.remb) + '</b> ' + pluriel(x.remb, ['remboursement', 'remboursements']) + ' / ' + fmt(x.trans) + ' ' + pluriel(x.trans, ['transaction', 'transactions']) + (x.trans ? ' · ' + taux(x.remb, x.trans) : ''); } });
       return;
     }
 
@@ -510,6 +524,7 @@
         return '<i style="background:' + se2.couleur + '"></i>' + esc(se2.nom) + ' : <b>' + fmt(val2) + '</b>';
       });
       if (o.empile) lignes.push('Total : <b>' + fmt(total(i)) + '</b>');
+      if (o.bulle) lignes = [o.bulle(i)];
       bulle.innerHTML = '<small>' + complet(o.jours[i]) + '</small>' + lignes.join('<br>');
       var hautVal = o.empile ? total(i) : Math.max.apply(null, o.series.map(function (se3) { return se3.valeurs[i]; }));
       var px = xPoint(i) * boite.width / W, py = y(Math.max(0, hautVal)) * boite.height / H;
@@ -578,15 +593,35 @@
 
   function sourceSerie(points, enCours) {
     var fin = new Date().toISOString().slice(0, 10), debut = plusJours(fin, -(HISTOIRE - 1));
-    var v = {}, n = {};
-    points.forEach(function (p) { v[p.jour] = p.v; if (p.n !== undefined) n[p.jour] = p.n; });
+    var v = {}, n = {}, m = {};
+    points.forEach(function (p) { v[p.jour] = p.v; if (p.n !== undefined) n[p.jour] = p.n; if (p.m) m[p.jour] = p.m; });
     // Une série « en cours » (abonnés, essais) garde sa dernière valeur connue les jours sans point :
     // un jour pas encore compté n'est pas un jour à zéro abonné.
     if (enCours) {
       var dernier = 0;
       suite(plusJours(debut, -30), fin).forEach(function (j) { if (v[j] === undefined) v[j] = dernier; else dernier = v[j]; });
     }
-    return { etat: 'ok', debut: debut, fin: fin, valeur: function (j) { return v[j] || 0; }, second: function (j) { return n[j] || 0; } };
+    return { etat: 'ok', debut: debut, fin: fin, valeur: function (j) { return v[j] || 0; }, second: function (j) { return n[j] || 0; }, mesures: function (j) { return m[j] || []; } };
+  }
+
+  /**
+   * Le taux de remboursement : RevenueCat donne plusieurs mesures par jour (taux, transactions,
+   * transactions remboursées), reconnues à leur nom. Le taux d'une période se recalcule à partir
+   * des comptes, jamais en faisant la moyenne des taux de chaque jour.
+   */
+  function lireRemboursements(s) {
+    var noms = (s.noms || []).map(function (x) { return String(x).toLowerCase(); });
+    var cherche = function (f) { for (var k = 0; k < noms.length; k++) if (f(noms[k])) return k; return -1; };
+    var iTaux = cherche(function (x) { return /rate|taux/.test(x); });
+    var iRemb = cherche(function (x) { return /refund|rembours/.test(x) && !/rate|taux/.test(x); });
+    var iTrans = cherche(function (x) { return /transaction/.test(x) && !/refund|rembours/.test(x); });
+    if (iTaux < 0 && iRemb < 0 && iTrans < 0) { iTaux = 0; iTrans = 1; iRemb = 2; }
+    return function (j) {
+      var mm = s.mesures(j), trans = iTrans >= 0 ? mm[iTrans] || 0 : 0, remb;
+      if (iRemb >= 0 && mm[iRemb] !== undefined) remb = mm[iRemb] || 0;
+      else { var t = iTaux >= 0 ? mm[iTaux] || 0 : 0; remb = Math.round(trans * (t > 1 ? t / 100 : t)); }
+      return { remb: remb, trans: trans };
+    };
   }
 
   function sourceParJour(parJour, tz) {
@@ -614,6 +649,7 @@
       Object.keys(rc.series).forEach(function (k) {
         var x = rc.series[k];
         series[k] = Array.isArray(x) ? sourceSerie(x, k === 'actives' || k === 'trials') : { etat: 'erreur', message: x.erreur };
+        if (Array.isArray(x)) series[k].noms = (rc.mesures || {})[k] || [];
       });
       D.rc = { etat: 'ok', series: series };
     } else D.rc = { etat: 'erreur', message: rc.erreur || 'RevenueCat ne répond pas pour l’instant.' };
@@ -698,8 +734,9 @@
         trials: serie(function () { es = Math.max(5, es + Math.round(hasard() * 8 - 3.5)); return es; }).map(function (v, i) { return { jour: utc[i], v: v }; }),
         trials_new: serie(function () { return Math.round(4 + hasard() * 14); }).map(function (v, i) { return { jour: utc[i], v: v }; }),
         revenue: serie(function () { var n = Math.round(1 + hasard() * 9); return [n * 29.99 * (0.8 + hasard() * 0.3), n]; }).map(function (v, i) { return { jour: utc[i], v: v[0], n: v[1] }; }),
-        customers_new: serie(function () { return Math.round(15 + hasard() * 45); }).map(function (v, i) { return { jour: utc[i], v: v }; })
-      } },
+        customers_new: serie(function () { return Math.round(15 + hasard() * 45); }).map(function (v, i) { return { jour: utc[i], v: v }; }),
+        refund_rate: utc.map(function (j) { var t = Math.round(1 + hasard() * 9), r = hasard() < 0.12 ? 1 : 0; return { jour: j, v: 100 * r / t, n: t, m: [100 * r / t, t, r] }; })
+      }, mesures: { refund_rate: ['Refund Rate', 'Transactions', 'Refunded Transactions'] } },
       partages: { jours: (function () { var o = {}; jours.forEach(function (j, i) { if (i > 80) o[j] = Math.round(hasard() * 6); }); return o; })() }
     });
     $('maj').textContent = 'Exemple';
