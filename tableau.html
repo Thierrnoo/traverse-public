@@ -139,7 +139,8 @@
   .cascade li { grid-template-columns: minmax(6.5rem, 15rem) minmax(1.5rem, 1fr) 5.2rem 2.6rem; gap: .6rem; }
   .cascade li.fort > span { color: var(--encre); font-weight: 600; }
   .cascade li:not(.fort) > span { padding-left: .9rem; }
-  .simu-champ { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; font-size: .9rem; color: var(--doux); margin: .7rem 0 .1rem; }
+  .simu-champ { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem 1rem; font-size: .9rem; color: var(--doux); margin: .7rem 0 .1rem; }
+  .simu-champ label { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
   .simu-champ input {
     font: inherit; font-size: 1.05rem; font-weight: 600; width: 9rem; text-align: right; color: var(--encre);
     background: var(--fond); border: 1px solid var(--grille); border-radius: 10px; padding: .5rem .7rem;
@@ -223,8 +224,11 @@
    * urssaf : ce que l'URSSAF prend sur ce qu'Apple te verse, à chaque déclaration. La micro-entreprise est
    *   déclarée en programmation informatique (62.01Z), une activité libérale non réglementée : 25,6 % de
    *   cotisations en 2026 (urssaf.fr), plus 0,2 % pour la formation professionnelle. À revoir chaque janvier.
+   * urssafAcre : le même taux avec l'Acre (demandée le 1er oct. 2026, réponse attendue en novembre). Pour une
+   *   activité commencée après le 1er juillet 2026, on paie 75 % du taux normal : 19,2 % + 0,2 % de formation,
+   *   jusqu'au 30 juin 2027. Le simulateur le propose en option ; s'il est accordé, les vrais chiffres aussi.
    */
-  var TAUX = { tva: 0.20, apple: 0.15, urssaf: 0.258 };
+  var TAUX = { tva: 0.20, apple: 0.15, urssaf: 0.258, urssafAcre: 0.194 };
   /** Le prix de l'abonnement annuel, pour l'exemple « un abonnement te laisse… ». */
   var PRIX_ANNUEL = 36.99;
   /** Le lien de la bio ne compte qu'à partir de là (remise à zéro du 29 sept., comme sur /stats). */
@@ -328,7 +332,7 @@
       modes: [['brut', 'Brut'], ['net', 'Net'], ['simulateur', 'Simulateur']], modeDefaut: 'brut',
       pied: 'RevenueCat · revenu brut, avant la part d’Apple et les taxes · jours UTC',
       piedNet: 'Calculé à partir du revenu brut de RevenueCat · TVA française de 20 %, comprise dans le prix et reversée à l’État par Apple · part d’Apple : 15 % du prix hors TVA (programme des petits développeurs) · URSSAF : ' +
-        (100 * TAUX.urssaf).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' % de ce qu’Apple te verse (taux 2026 d’une activité libérale : 25,6 % de cotisations et 0,2 % pour la formation) · une estimation : l’impôt sur le revenu n’est pas compté · jours UTC' },
+        (100 * TAUX.urssaf).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' % de ce qu’Apple te verse (taux 2026 d’une activité libérale : 25,6 % de cotisations et 0,2 % pour la formation), 19,4 % avec l’Acre jusqu’au 30 juin 2027 · une estimation : l’impôt sur le revenu n’est pas compté · jours UTC' },
     { id: 'essais', section: 'monetisation', titre: 'Essais actifs', source: 'rc', graphe: 'trials', type: 'aire', couleur: 'var(--bleu)',
       unite: ['essai en cours', 'essais en cours'], pied: 'RevenueCat · essais gratuits de 7 jours en cours' },
     { id: 'nouveaux-essais', section: 'monetisation', titre: 'Nouveaux essais / jour', source: 'rc', graphe: 'trials_new', type: 'barres', couleur: 'var(--violet)',
@@ -376,6 +380,7 @@
         else if (b.dataset.n) { st.n = +b.dataset.n; st.du = st.au = ''; cal.hidden = true; }
         else if (b.dataset.cal) { ouvrirCalendrier(c); return; }
         else if (b.hasAttribute('data-version')) { st.version = b.dataset.version; }
+        else if (b.hasAttribute('data-acre')) { st.acre = !st.acre; }
         else if (b.hasAttribute('data-effacer')) { st.du = st.au = ''; cal.hidden = true; }
         else if (b.hasAttribute('data-appliquer')) {
           var du = cal.querySelector('[data-du]').value, au = cal.querySelector('[data-au]').value;
@@ -634,9 +639,10 @@
    * Ce que devient un paiement : la TVA sort d'abord (Apple la reverse à l'État), puis la part d'Apple
    * sur le prix hors TVA ; le reste est versé par Apple, et l'URSSAF prend sa part de ce versement.
    */
-  function partage(brut) {
-    var ht = brut / (1 + TAUX.tva), apple = ht * TAUX.apple, verse = ht - apple, urssaf = verse * TAUX.urssaf;
-    return { brut: brut, tva: brut - ht, apple: apple, verse: verse, urssaf: urssaf, net: verse - urssaf };
+  function partage(brut, tauxUrssaf) {
+    var t = tauxUrssaf === undefined ? TAUX.urssaf : tauxUrssaf;
+    var ht = brut / (1 + TAUX.tva), apple = ht * TAUX.apple, verse = ht - apple, urssaf = verse * t;
+    return { brut: brut, tva: brut - ht, apple: apple, verse: verse, urssaf: urssaf, net: verse - urssaf, tauxUrssaf: t };
   }
   var taux = function (t) { return (100 * t).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %'; };
 
@@ -654,7 +660,7 @@
       ligne('TVA (' + taux(TAUX.tva) + ')', base.tva, 'var(--autres)', '− ') +
       ligne('Part d’Apple (' + taux(TAUX.apple) + ')', base.apple, 'var(--orange)', '− ') +
       ligne('Versé par Apple', base.verse, 'var(--bleu)', '', true) +
-      ligne('URSSAF (' + taux(TAUX.urssaf) + ')', base.urssaf, 'var(--violet)', '− ') +
+      ligne('URSSAF (' + taux(base.tauxUrssaf) + (base.tauxUrssaf === TAUX.urssafAcre ? ', avec l’Acre' : '') + ')', base.urssaf, 'var(--violet)', '− ') +
       ligne('Pour toi', base.net, 'var(--aqua)', '', true) +
       '</ul>';
   }
@@ -681,17 +687,22 @@
 
     if (simuler) {
       if (st.montant === undefined) st.montant = 1000;
+      // L'Acre, à cocher (1er oct.) : l'URSSAF passe de 25,8 % à 19,4 %, et la carte dit ce que ça rapporte.
       corps.innerHTML = '<div class="hero"><b style="color:var(--aqua)"></b><span class="sous"></span></div>' +
-        '<label class="simu-champ"><span>Si les clients paient</span><input type="text" inputmode="decimal" autocomplete="off" value="' +
-        (st.montant ? String(st.montant).replace('.', ',') : '') + '"><span>€</span></label><div data-cascade></div>';
+        '<div class="simu-champ"><label><span>Si les clients paient</span><input type="text" inputmode="decimal" autocomplete="off" value="' +
+        (st.montant ? String(st.montant).replace('.', ',') : '') + '"><span>€</span></label>' +
+        '<span class="pilules"><button class="pil" type="button" data-acre="1" aria-pressed="' + !!st.acre + '">' + (st.acre ? '✓ ' : '') + 'Avec l’Acre</button></span></div>' +
+        '<div data-cascade></div>';
       var champ = corps.querySelector('.simu-champ input');
       var maj = function () {
         st.montant = lireMontant(champ.value);
-        var p = partage(st.montant), n = st.montant / PRIX_ANNUEL;
+        var p = partage(st.montant, st.acre ? TAUX.urssafAcre : TAUX.urssaf), n = st.montant / PRIX_ANNUEL;
+        var gain = st.acre ? p.net - partage(st.montant).net : 0;
         corps.querySelector('.hero b').textContent = d(p.net);
         corps.querySelector('.hero .sous').innerHTML = 'dans ta poche, pour ' + d(p.brut) + ' payés par les clients' +
-          (n >= 0.95 ? ' · soit environ ' + fmt(n) + ' ' + pluriel(n, ['abonnement annuel', 'abonnements annuels']) + ' à ' + d(PRIX_ANNUEL) : '');
-        corps.querySelector('[data-cascade]').innerHTML = cascade(p, 'Simulation');
+          (n >= 0.95 ? ' · soit environ ' + fmt(n) + ' ' + pluriel(n, ['abonnement annuel', 'abonnements annuels']) + ' à ' + d(PRIX_ANNUEL) : '') +
+          (gain > 0 ? ' · <span class="hausse">+' + d(gain) + ' grâce à l’Acre</span>' : '');
+        corps.querySelector('[data-cascade]').innerHTML = cascade(p, st.acre ? 'Simulation avec l’Acre (jusqu’au 30 juin 2027)' : 'Simulation');
       };
       champ.addEventListener('input', maj);
       maj();
