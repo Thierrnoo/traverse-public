@@ -16,7 +16,10 @@
     - le parcours dans l'app (30 sept.) : la fonction Supabase stats_parcours_app, qui compte, sans
       rien savoir des personnes, combien arrivent à chaque écran de l'accueil, jusqu'à l'essai ;
     - Apple, RevenueCat et les voyages partagés : la fonction Supabase « tableau-de-bord », qui garde
-      les clés secrètes chez elle et ne renvoie que des totaux par jour.
+      les clés secrètes chez elle et ne renvoie que des totaux par jour ;
+    - les appels à l'IA (30 sept.) : la fonction Supabase stats_appels_ia (chaque appel au modèle noté par
+      la fonction « journee », avec son coût exact, tes essais à part des utilisateurs), et les totaux
+      d'OpenRouter (aujourd'hui, ce mois-ci, depuis le début) renvoyés par « tableau-de-bord ».
   Rien ne sort sans la clé du tableau de bord (après le # la première fois, puis gardée dans ce navigateur).
   Chaque source tombe seule : une carte en panne n'empêche pas les autres de s'afficher.
   Couleurs des séries : palette de référence validée sur le fond des cartes #1b2129 (script du 29 sept.).
@@ -187,6 +190,8 @@
     <div class="grille" id="s-monetisation"></div>
     <h2 class="section">Dans l'app</h2>
     <div class="grille" id="s-usage"></div>
+    <h2 class="section">Intelligence artificielle · appels et dépenses</h2>
+    <div class="grille" id="s-ia"></div>
   </div>
 </main>
 
@@ -222,6 +227,11 @@
   var garder = function (k, v) { if (DEMO) return; try { localStorage.setItem(k, v); } catch (e) {} };
   var fmt = function (n) { return Math.round(n).toLocaleString('fr-FR'); };
   var euros = function (n, dec) { return n.toLocaleString('fr-FR', { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 }) + ' €'; };
+  /** OpenRouter facture en dollars, à la fraction de centime : on garde trois décimales sous 1 $. */
+  var dollars = function (n) {
+    if (!n) return '0 $';
+    return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: n < 1 ? 3 : 2 }) + ' $';
+  };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var pluriel = function (n, u) { return Math.abs(Math.round(n)) > 1 ? u[1] : u[0]; };
   var jourDans = function (tz, decalage) { return new Intl.DateTimeFormat('fr-CA', { timeZone: tz }).format(new Date(Date.now() - (decalage || 0) * 86400000)); };
@@ -235,7 +245,9 @@
 
   // ------------------------------------------------------------------------------------------
   // Les données, une entrée par source. etat : chargement | ok | absente | erreur.
-  var D = { lien: { etat: 'chargement' }, parcours: { etat: 'chargement' }, apple: { etat: 'chargement' }, sources: { etat: 'chargement' }, rc: { etat: 'chargement' }, partages: { etat: 'chargement' } };
+  var D = { lien: { etat: 'chargement' }, parcours: { etat: 'chargement' }, apple: { etat: 'chargement' }, sources: { etat: 'chargement' }, rc: { etat: 'chargement' }, partages: { etat: 'chargement' }, ia: { etat: 'chargement' }, openrouter: null };
+  /** Les deux origines d'un appel à l'IA, et leur couleur dans les graphes. */
+  var ORIGINES_IA = [['utilisateurs', 'Utilisateurs', 'var(--bleu)'], ['toi', 'Toi (tes essais)', 'var(--jaune)']];
 
   /**
    * Les étapes du parcours, dans l'ordre où on les traverse (components/parcours.ts de l'app).
@@ -298,7 +310,11 @@
     { id: 'remboursements', section: 'monetisation', titre: 'Taux de remboursement', source: 'rc', graphe: 'refund_rate', type: 'remboursement', couleur: 'var(--rouge)',
       pied: 'RevenueCat · achats payants remboursés ÷ achats payants (essais exclus), comptés au jour de l’achat : un jour passé peut encore bouger · jours UTC' },
     { id: 'partages', section: 'usage', titre: 'Voyages partagés', source: 'partages', type: 'barres', couleur: 'var(--magenta)',
-      modes: true, unite: ['voyage partagé', 'voyages partagés'], pied: 'Supabase · liens de partage créés depuis l’app · heure de Paris' }
+      modes: true, unite: ['voyage partagé', 'voyages partagés'], pied: 'Supabase · liens de partage créés depuis l’app · heure de Paris' },
+    { id: 'appels-ia', section: 'ia', titre: 'Appels à l’IA', source: 'ia', type: 'ia', mesure: 'appels', modes: true,
+      pied: 'La fonction « journee » · un appel = une demande au modèle (écrire des journées, ou remplacer une adresse refusée) · « Toi » : l’app en développement (le web en local, le build de développement de l’iPhone) ; « Utilisateurs » : l’app de l’App Store · compté depuis la mise en ligne du compteur · heure de Paris' },
+    { id: 'depenses-ia', section: 'ia', titre: 'Dépenses IA', source: 'ia', type: 'ia', mesure: 'cout', modes: true,
+      pied: 'Coût exact de chaque appel, tel qu’OpenRouter le facture (en dollars) · « par nouvel utilisateur » : dépenses des utilisateurs ÷ nouveaux utilisateurs de RevenueCat sur la même période · heure de Paris' }
   ];
 
   var ICONE_CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>';
@@ -442,6 +458,8 @@
       return;
     }
 
+    if (c.type === 'ia') { rendreIA(c, s, jours, prec, libelleAvant, hero, sous, zone, legende); return; }
+
     if (c.type === 'lien') {
       var vis = jours.map(function (j) { return s.jour(j).visites; }), sto = jours.map(function (j) { return s.jour(j).store; });
       var tv = vis.reduce(add, 0), ts = sto.reduce(add, 0);
@@ -531,6 +549,55 @@
     graphe(zone, { type: 'barres', jours: jours, series: [{ nom: c.titre, couleur: c.couleur, valeurs: parJour }], unite: c.unite });
   }
   function add(a, b) { return a + b; }
+
+  /**
+   * Les appels à l'IA et leur coût, jour par jour : les utilisateurs d'un côté, tes essais de l'autre,
+   * empilés. Pour se situer, on rapporte aussi ce que coûtent les utilisateurs au nombre de nouveaux
+   * utilisateurs de RevenueCat sur la même période, et on rappelle les totaux d'OpenRouter.
+   */
+  function rendreIA(c, s, jours, prec, libelleAvant, hero, sous, zone, legende) {
+    var cout = c.mesure === 'cout', st = c.etat, f = cout ? dollars : fmt;
+    var val = function (j, o) { var x = s.jour(j)[o]; return x ? (cout ? x.cout : x.n) : 0; };
+    var series = ORIGINES_IA.map(function (o) { return { nom: o[1], couleur: o[2], valeurs: jours.map(function (j) { return val(j, o[0]); }) }; });
+    var tu = series[0].valeurs.reduce(add, 0), tt = series[1].valeurs.reduce(add, 0), total = tu + tt;
+    var appels = jours.reduce(function (t, j) { return t + s.jour(j).utilisateurs.n + s.jour(j).toi.n; }, 0);
+    var ecrites = jours.reduce(function (t, j) { return t + s.jour(j).utilisateurs.jours + s.jour(j).toi.jours; }, 0);
+    // Les nouveaux utilisateurs de RevenueCat sur les mêmes jours : ce qui permet de se situer.
+    var rcNew = D.rc.etat === 'ok' && D.rc.series.customers_new && D.rc.series.customers_new.etat === 'ok' ? D.rc.series.customers_new : null;
+    var nouveaux = rcNew ? jours.reduce(function (t, j) { return t + (rcNew.valeur(j) || 0); }, 0) : 0;
+    var part = total ? Math.round(100 * tt / total) : 0;
+    hero.style.color = 'var(--encre)';
+    var precedent = prec ? prec.reduce(function (t, j) { return t + val(j, 'utilisateurs') + val(j, 'toi'); }, 0) : null;
+
+    if (st.mode === 'cumul') {
+      var cumul = []; jours.reduce(function (t, j, i) { t += series[0].valeurs[i] + series[1].valeurs[i]; cumul.push(t); return t; }, 0);
+      hero.textContent = f(total);
+      sous.innerHTML = (cout ? 'dépensés ' : pluriel(total, ['appel', 'appels']) + ' ') + duree(c, jours) + ' · dont ' + f(tt) + ' pour tes essais (' + part + ' %)';
+      graphe(zone, { type: 'aire', jours: jours, dollars: cout, series: [{ nom: 'Cumul', couleur: 'var(--bleu)', valeurs: cumul }], unite: cout ? null : ['appel', 'appels'] });
+      legende.innerHTML = '';
+      return;
+    }
+
+    hero.textContent = f(total);
+    var h = cout
+      ? 'dépensés ' + duree(c, jours) + ' · <span style="color:var(--bleu)">' + dollars(tu) + ' pour les utilisateurs</span> · <span style="color:var(--jaune)">' + dollars(tt) + ' pour tes essais</span>' +
+        (appels ? ' · ' + dollars(total / appels) + ' par appel en moyenne' : '') +
+        (nouveaux ? ' · ≈ ' + dollars(tu / nouveaux) + ' par nouvel utilisateur' : '')
+      : pluriel(total, ['appel', 'appels']) + ' ' + duree(c, jours) + ' · <span style="color:var(--bleu)">' + fmt(tu) + ' des utilisateurs</span> · <span style="color:var(--jaune)">' + fmt(tt) + ' de toi (' + part + ' %)</span>' +
+        ' · ' + fmt(ecrites) + ' ' + pluriel(ecrites, ['journée écrite', 'journées écrites']) +
+        (nouveaux ? ' · ≈ ' + (tu / nouveaux).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' appel' + (tu / nouveaux >= 2 ? 's' : '') + ' par nouvel utilisateur' : '');
+    sous.innerHTML = h + ecart(total, precedent, libelleAvant);
+    if (!s.debutCompteur) sous.innerHTML += '<br><span style="color:var(--gris)">Aucun appel noté pour l’instant : le compteur démarre quand la fonction « journee » est mise à jour.</span>';
+    // Les totaux d'OpenRouter, en contrôle (ils comptent aussi ce qui a été dépensé avant le compteur).
+    var o = D.openrouter;
+    if (cout && o && !o.erreur && !o.absente && o.total !== null) {
+      sous.innerHTML += '<br><span style="color:var(--gris)">OpenRouter : ' + dollars(o.jour || 0) + ' aujourd’hui (heure UTC) · ' + dollars(o.mois || 0) + ' ce mois-ci · ' + dollars(o.total) + ' depuis le début' +
+        (o.reste !== null && o.reste !== undefined ? ' · il reste ' + dollars(o.reste) + ' avant la limite de la clé' : '') + '</span>';
+    }
+    var visibles = series.filter(function (se) { return se.valeurs.some(function (v) { return v > 0; }); });
+    graphe(zone, { type: 'barres', empile: true, dollars: cout, jours: jours, series: visibles.length ? visibles : series.slice(0, 1) });
+    legende.innerHTML = series.map(function (se) { return '<span><i style="background:' + se.couleur + '"></i>' + esc(se.nom) + '</span>'; }).join('');
+  }
 
   /**
    * Le parcours : combien de personnes arrivent à chaque écran, du premier à l'essai, puis ce qui se
@@ -628,8 +695,9 @@
     var total = function (i) { return o.series.reduce(function (t, s) { return t + Math.max(0, s.valeurs[i]); }, 0); };
     var max = 0;
     for (var i = 0; i < n; i++) max = Math.max(max, o.empile ? total(i) : Math.max.apply(null, o.series.map(function (s) { return s.valeurs[i]; })));
-    var e = echelle(max, o.euros);
-    var etiq = function (v) { return o.euros ? fmt(v) + ' €' : fmt(v); };
+    var e = echelle(max, o.euros || o.dollars);
+    var etiq = function (v) { return o.euros ? fmt(v) + ' €' : o.dollars ? dollars(v) : fmt(v); };
+    var chiffre = function (v) { return o.dollars ? dollars(v) : fmt(v); };
     var G = Math.max(28, 8 + 6.4 * etiq(e.plafond).length), B = 24, HAUT = 8, D = 4;
     var y = function (v) { return HAUT + (H - HAUT - B) * (1 - v / e.plafond); };
     var s = '';
@@ -689,10 +757,10 @@
       i = Math.max(0, Math.min(n - 1, i));
       var lignes = o.series.map(function (se2) {
         var val2 = se2.valeurs[i];
-        if (ns === 1) return '<b>' + (o.euros ? euros(val2, 2) : fmt(val2)) + '</b>' + (o.unite ? ' ' + pluriel(val2, o.unite) : '');
-        return '<i style="background:' + se2.couleur + '"></i>' + esc(se2.nom) + ' : <b>' + fmt(val2) + '</b>';
+        if (ns === 1) return '<b>' + (o.euros ? euros(val2, 2) : chiffre(val2)) + '</b>' + (o.unite ? ' ' + pluriel(val2, o.unite) : '');
+        return '<i style="background:' + se2.couleur + '"></i>' + esc(se2.nom) + ' : <b>' + chiffre(val2) + '</b>';
       });
-      if (o.empile) lignes.push('Total : <b>' + fmt(total(i)) + '</b>');
+      if (o.empile) lignes.push('Total : <b>' + chiffre(total(i)) + '</b>');
       if (o.bulle) lignes = [o.bulle(i)];
       bulle.innerHTML = '<small>' + complet(o.jours[i]) + '</small>' + lignes.join('<br>');
       var hautVal = o.empile ? total(i) : Math.max.apply(null, o.series.map(function (se3) { return se3.valeurs[i]; }));
@@ -778,6 +846,33 @@
       D.parcours = p ? sourceParcours(p.lignes || []) : { etat: 'erreur', message: 'La clé n’ouvre pas le parcours.' };
     } catch (e) {
       D.parcours = { etat: 'erreur', message: 'Le parcours ne répond pas pour l’instant.' };
+    }
+  }
+
+  /** Les appels à l'IA : pour chaque jour de Paris, par origine, appels, coût, journées écrites, ratés. */
+  function sourceIA(lignes) {
+    var fin = jourDans('Europe/Paris'), debut = plusJours(fin, -(HISTOIRE - 1));
+    var parJour = {}, premier = '';
+    var vide = function () { return { n: 0, cout: 0, jours: 0, rates: 0 }; };
+    lignes.forEach(function (l) {
+      var t = parJour[l.jour] || (parJour[l.jour] = { utilisateurs: vide(), toi: vide() });
+      var o = t[l.origine] || (t[l.origine] = vide());
+      o.n += l.n || 0; o.cout += l.cout || 0; o.jours += l.jours || 0; o.rates += l.rates || 0;
+      if (!premier || l.jour < premier) premier = l.jour;
+    });
+    return { etat: 'ok', debut: debut, fin: fin, debutCompteur: premier,
+      jour: function (j) { return parJour[j] || { utilisateurs: vide(), toi: vide() }; } };
+  }
+
+  async function chargerIA() {
+    try {
+      var r = await appeler('/rest/v1/rpc/stats_appels_ia', { cle: cle });
+      if (r.status === 404) { D.ia = { etat: 'absente', message: 'Le compteur des appels n’est pas encore installé sur Supabase.' }; return; }
+      if (!r.ok) throw new Error();
+      var p = await r.json();
+      D.ia = p ? sourceIA(p.lignes || []) : { etat: 'erreur', message: 'La clé n’ouvre pas les appels à l’IA.' };
+    } catch (e) {
+      D.ia = { etat: 'erreur', message: 'Les appels à l’IA ne répondent pas pour l’instant.' };
     }
   }
 
@@ -898,6 +993,9 @@
 
     var p = r.partages || {};
     D.partages = p.jours ? sourceParJour(p.jours, 'Europe/Paris') : { etat: p.absente ? 'absente' : 'erreur', message: p.erreur || '' };
+
+    // Les totaux d'OpenRouter : un simple rappel sous la carte « Dépenses IA ».
+    D.openrouter = r.openrouter || null;
   }
   function memoApple() { try { return JSON.parse(lire(MEMO_APPLE) || '{}'); } catch (e) { return {}; } }
 
@@ -925,8 +1023,9 @@
       $('ecran-cle').hidden = true; $('tableau').hidden = false;
       D.lien = sourceLien(lien.lignes || []);
       CARTES.forEach(rendre);
-      // Le parcours arrive à côté, sans attendre Apple ni RevenueCat.
+      // Le parcours et les appels à l'IA arrivent à côté, sans attendre Apple ni RevenueCat.
       chargerParcours().then(function () { CARTES.filter(function (c) { return c.source === 'parcours'; }).forEach(rendre); });
+      chargerIA().then(function () { CARTES.filter(function (c) { return c.source === 'ia'; }).forEach(rendre); });
 
       // Les jours Apple qui manquent encore dans ce navigateur (du plus récent au plus ancien).
       var memo = memoApple(), besoin = [];
@@ -986,6 +1085,14 @@
       ETAPES.concat(A_COTE).forEach(function (e) { if (vu[e[0]] > 0) lignesP.push({ jour: j, etape: e[0], version: v, n: vu[e[0]] }); });
     });
     D.parcours = sourceParcours(lignesP);
+    // Des appels à l'IA inventés : beaucoup d'essais au début, puis les utilisateurs prennent le dessus.
+    var lignesIA = [];
+    suite(jourDans('Europe/Paris', 45), jourDans('Europe/Paris')).forEach(function (j, i) {
+      var u = Math.round(i * 0.8 + hasard() * 10), t = Math.round(Math.max(0, 12 - i * 0.25) * hasard() * 1.6);
+      if (u) lignesIA.push({ jour: j, origine: 'utilisateurs', etape: 'journees', n: u, rates: 0, jours: u * 2, cout: u * (0.0025 + hasard() * 0.0015), jetons: u * 9000 });
+      if (t) lignesIA.push({ jour: j, origine: 'toi', etape: 'journees', n: t, rates: 0, jours: t * 2, cout: t * (0.0025 + hasard() * 0.0015), jetons: t * 9000 });
+    });
+    D.ia = sourceIA(lignesIA);
     var instances = {};
     utc.forEach(function (j, i) {
       var t = Math.round(20 + i * 1.5);
@@ -1004,7 +1111,8 @@
         customers_new: serie(function () { return Math.round(15 + hasard() * 45); }).map(function (v, i) { return { jour: utc[i], v: v }; }),
         refund_rate: utc.map(function (j) { var t = Math.round(1 + hasard() * 9), r = hasard() < 0.12 ? 1 : 0; return { jour: j, v: 100 * r / t, n: t, m: [100 * r / t, t, r] }; })
       }, mesures: { refund_rate: ['Refund Rate', 'Transactions', 'Refunded Transactions'] } },
-      partages: { jours: (function () { var o = {}; jours.forEach(function (j, i) { if (i > 80) o[j] = Math.round(hasard() * 6); }); return o; })() }
+      partages: { jours: (function () { var o = {}; jours.forEach(function (j, i) { if (i > 80) o[j] = Math.round(hasard() * 6); }); return o; })() },
+      openrouter: { jour: 0.084, semaine: 0.52, mois: 1.93, total: 4.71, limite: null, reste: null }
     });
     $('maj').textContent = 'Exemple';
     CARTES.forEach(rendre);
