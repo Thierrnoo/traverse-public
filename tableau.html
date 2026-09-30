@@ -13,6 +13,8 @@
   abonnés, essais, revenu, voyages partagés. Une carte = une question, chacune avec sa période.
   Ce qui vient d'où :
     - le lien de la bio : la fonction Supabase stats_lien_bio (la même que traverse-app.fr/stats) ;
+    - le parcours dans l'app (30 sept.) : la fonction Supabase stats_parcours_app, qui compte, sans
+      rien savoir des personnes, combien arrivent à chaque écran de l'accueil, jusqu'à l'essai ;
     - Apple, RevenueCat et les voyages partagés : la fonction Supabase « tableau-de-bord », qui garde
       les clés secrètes chez elle et ne renvoie que des totaux par jour.
   Rien ne sort sans la clé du tableau de bord (après le # la première fois, puis gardée dans ce navigateur).
@@ -118,6 +120,19 @@
   .barre { height: 3px; border-radius: 3px; background: var(--grille); margin-top: .4rem; overflow: hidden; }
   .barre span { display: block; height: 100%; background: var(--bleu); border-radius: 3px; }
 
+  .versions { margin: .7rem 0 .2rem; flex-wrap: wrap; }
+  .entonnoir { list-style: none; margin: .4rem 0 0; padding: 0; }
+  .entonnoir li {
+    display: grid; grid-template-columns: minmax(6.5rem, 14rem) minmax(3rem, 1fr) 2.8rem 3.2rem; align-items: center; gap: .75rem;
+    padding: .45rem 0; border-top: 1px solid var(--trait); font-size: .88rem;
+  }
+  .entonnoir li > span { color: var(--doux); }
+  .entonnoir li small { display: block; font-size: .74rem; color: var(--baisse); }
+  .entonnoir .barre { margin: 0; height: 8px; }
+  .entonnoir b { text-align: right; font-variant-numeric: tabular-nums; }
+  .entonnoir em { font-style: normal; text-align: right; color: var(--gris); font-size: .8rem; font-variant-numeric: tabular-nums; }
+  .entonnoir-titre { font-size: .8rem; color: var(--gris); font-weight: 500; margin: 1.1rem 0 .2rem; }
+
   .calendrier {
     position: absolute; right: 1rem; top: 3rem; z-index: 10; background: #0b0e12; border: 1px solid var(--grille);
     border-radius: 12px; padding: .8rem; display: grid; gap: .5rem; font-size: .82rem; color: var(--gris);
@@ -166,6 +181,8 @@
 
     <h2 class="section">Acquisition</h2>
     <div class="grille" id="s-acquisition"></div>
+    <h2 class="section">Parcours · de l'ouverture à l'essai</h2>
+    <div class="grille" id="s-parcours"></div>
     <h2 class="section">Monétisation · RevenueCat</h2>
     <div class="grille" id="s-monetisation"></div>
     <h2 class="section">Dans l'app</h2>
@@ -218,7 +235,23 @@
 
   // ------------------------------------------------------------------------------------------
   // Les données, une entrée par source. etat : chargement | ok | absente | erreur.
-  var D = { lien: { etat: 'chargement' }, apple: { etat: 'chargement' }, sources: { etat: 'chargement' }, rc: { etat: 'chargement' }, partages: { etat: 'chargement' } };
+  var D = { lien: { etat: 'chargement' }, parcours: { etat: 'chargement' }, apple: { etat: 'chargement' }, sources: { etat: 'chargement' }, rc: { etat: 'chargement' }, partages: { etat: 'chargement' } };
+
+  /**
+   * Les étapes du parcours, dans l'ordre où on les traverse (components/parcours.ts de l'app).
+   * Chaque téléphone ne compte qu'une fois par étape : ce sont des personnes, pas des passages.
+   */
+  var ETAPES = [
+    ['bienvenue', 'Ouvre l’app'], ['langue', 'Langue'], ['destination', 'Destination'], ['dates', 'Dates'],
+    ['couverture', 'Photo du voyage'], ['compagnons', 'Avec qui'], ['envies', 'Envies'], ['rythme', 'Rythme'],
+    ['budget', 'Budget'], ['generation', 'Construction du Jour 1'], ['apercu', 'Aperçu du Jour 1'],
+    ['rappel', 'Rappel de fin d’essai'], ['paywall', 'Offre de fin d’accueil'],
+    ['bouton', 'Touche le bouton de l’essai'], ['essai', 'Essai démarré']
+  ];
+  var A_COTE = [
+    ['offre', 'Offre vue, où que ce soit'], ['annule', 'Fenêtre d’Apple refermée sans payer'], ['erreur', 'Achat en échec'],
+    ['rattrapage', 'Offre de rattrapage vue'], ['fin', 'Accueil terminé, essai ou non'], ['avis', 'Fenêtre d’avis demandée']
+  ];
   var cle = '';
 
   // Une source de la page, ramenée à une même forme : jours de debut à fin, valeur(j).
@@ -252,6 +285,8 @@
       pied: 'traverse-app.fr/app · compté depuis le 29/09 à 10 h · <a href="stats">le détail</a>' },
     { id: 'provenance', section: 'acquisition', titre: 'Provenance du lien', source: 'lien', type: 'provenance',
       pied: 'Visites de traverse-app.fr/app, selon l’app où le lien a été ouvert et le type d’appareil · sans cookie ni identifiant' },
+    { id: 'parcours', section: 'parcours', titre: 'Où les gens s’arrêtent', source: 'parcours', type: 'parcours',
+      pied: 'L’app · combien de personnes arrivent à chaque écran, une fois par téléphone, sans identifiant · pourcentages par rapport à « Ouvre l’app » · heure de Paris · compté à partir de la version qui porte le compteur' },
     { id: 'abonnes', section: 'monetisation', titre: 'Abonnés actifs', source: 'rc', graphe: 'actives', type: 'aire', couleur: 'var(--aqua)',
       unite: ['abonné', 'abonnés'], pied: 'RevenueCat · abonnements payants en cours, jour par jour' },
     { id: 'essais', section: 'monetisation', titre: 'Essais actifs', source: 'rc', graphe: 'trials', type: 'aire', couleur: 'var(--bleu)',
@@ -296,6 +331,7 @@
         else if (b.dataset.ventil) { st.ventil = !st.ventil; if (st.ventil) st.mode = 'jour'; }
         else if (b.dataset.n) { st.n = +b.dataset.n; st.du = st.au = ''; cal.hidden = true; }
         else if (b.dataset.cal) { ouvrirCalendrier(c); return; }
+        else if (b.hasAttribute('data-version')) { st.version = b.dataset.version; }
         else if (b.hasAttribute('data-effacer')) { st.du = st.au = ''; cal.hidden = true; }
         else if (b.hasAttribute('data-appliquer')) {
           var du = cal.querySelector('[data-du]').value, au = cal.querySelector('[data-au]').value;
@@ -378,6 +414,7 @@
     hero.style.color = c.couleur || 'var(--encre)';
 
     if (c.type === 'donut') { rendreDonut(c, s, jours, corps); return; }
+    if (c.type === 'parcours') { rendreParcours(c, s, jours, corps); return; }
 
     if (c.type === 'sources') {
       var parSource = SOURCES.map(function (src) { return { nom: src.nom, couleur: src.couleur, valeurs: jours.map(function (j) { return s.parSource(j)[src.nom] || 0; }) }; });
@@ -494,6 +531,50 @@
     graphe(zone, { type: 'barres', jours: jours, series: [{ nom: c.titre, couleur: c.couleur, valeurs: parJour }], unite: c.unite });
   }
   function add(a, b) { return a + b; }
+
+  /**
+   * Le parcours : combien de personnes arrivent à chaque écran, du premier à l'essai, puis ce qui se
+   * passe à côté. La plus grosse perte d'un écran au suivant est signalée : c'est là qu'il faut regarder.
+   * Quand l'app a eu plusieurs versions sur la période, des pilules permettent d'en isoler une.
+   */
+  function rendreParcours(c, s, jours, corps) {
+    var st = c.etat, versions = s.versions;
+    if (st.version && versions.indexOf(st.version) < 0) st.version = '';
+    var compte = function (etape) {
+      return jours.reduce(function (t, j) {
+        var parVersion = s.jour(j)[etape] || {};
+        return t + Object.keys(parVersion).reduce(function (u, v) { return u + (!st.version || v === st.version ? parVersion[v] : 0); }, 0);
+      }, 0);
+    };
+    var n = ETAPES.map(function (e) { return compte(e[0]); });
+    var depart = n[0], essais = n[n.length - 1];
+    var h = '<div class="hero"><b style="color:var(--encre)">' + fmt(depart) + '</b><span class="sous">' + pluriel(depart, ['personne a ouvert l’app', 'personnes ont ouvert l’app']) + ' ' + duree(c, jours) +
+      ' · <span style="color:var(--aqua)">' + fmt(essais) + ' ' + pluriel(essais, ['essai', 'essais']) + (depart ? ' (' + Math.round(100 * essais / depart) + ' %)' : '') + '</span></span></div>';
+    if (versions.length > 1) {
+      h += '<div class="pilules versions">' + [['', 'Toutes les versions']].concat(versions.map(function (v) { return [v, 'Version ' + v]; })).map(function (v) {
+        return '<button class="pil" data-version="' + esc(v[0]) + '" aria-pressed="' + (v[0] === (st.version || '')) + '">' + esc(v[1]) + '</button>';
+      }).join('') + '</div>';
+    }
+    if (!n.some(Boolean) && !A_COTE.some(function (e) { return compte(e[0]); })) {
+      corps.innerHTML = h + '<div class="vide"><div><strong>Personne encore ' + duree(c, jours) + '</strong>Le compteur arrive avec la version de l’app qui le porte.</div></div>';
+      return;
+    }
+    // La plus grosse perte d'un écran au suivant.
+    var pire = -1, perte = 0;
+    for (var k = 1; k < n.length; k++) if (n[k - 1] - n[k] > perte) { perte = n[k - 1] - n[k]; pire = k; }
+    var ligne = function (nom, v, base, couleur, note) {
+      return '<li><span>' + esc(nom) + (note || '') + '</span><div class="barre"><span style="width:' + (base ? Math.min(100, 100 * v / base) : 0) + '%;background:' + couleur + '"></span></div>' +
+        '<b>' + fmt(v) + '</b><em>' + (base ? Math.round(100 * v / base) + ' %' : '') + '</em></li>';
+    };
+    h += '<ul class="entonnoir">' + ETAPES.map(function (e, i) {
+      var note = i === pire ? '<small>▼ ' + fmt(perte) + ' ' + pluriel(perte, ['personne perdue', 'personnes perdues']) + ' ici, la plus grosse perte</small>' : '';
+      return ligne(e[1], n[i], depart, e[0] === 'essai' ? 'var(--aqua)' : 'var(--bleu)', note);
+    }).join('') + '</ul>';
+    h += '<p class="entonnoir-titre">À côté</p><ul class="entonnoir">' + A_COTE.map(function (e) {
+      return ligne(e[1], compte(e[0]), depart, 'var(--autres)');
+    }).join('') + '</ul>';
+    corps.innerHTML = h;
+  }
 
   function rendreDonut(c, s, jours, corps) {
     var parPays = {};
@@ -672,6 +753,34 @@
     return { etat: 'ok', debut: debut, fin: fin, jour: function (j) { return parJour[j] || vide(); } };
   }
 
+  /** Le parcours : pour chaque jour de Paris, étape → version → nombre de personnes. */
+  function sourceParcours(lignes) {
+    var fin = jourDans('Europe/Paris'), debut = plusJours(fin, -(HISTOIRE - 1));
+    var parJour = {}, versions = {};
+    lignes.forEach(function (l) {
+      var v = l.version || '?';
+      var t = parJour[l.jour] || (parJour[l.jour] = {});
+      var e = t[l.etape] || (t[l.etape] = {});
+      e[v] = (e[v] || 0) + l.n;
+      versions[v] = true;
+    });
+    var rang = function (v) { return v.split('.').map(function (x) { return ('000' + x).slice(-3); }).join('.'); };
+    return { etat: 'ok', debut: debut, fin: fin, jour: function (j) { return parJour[j] || {}; },
+      versions: Object.keys(versions).sort(function (a, b) { return rang(a) < rang(b) ? -1 : 1; }) };
+  }
+
+  async function chargerParcours() {
+    try {
+      var r = await appeler('/rest/v1/rpc/stats_parcours_app', { cle: cle });
+      if (r.status === 404) { D.parcours = { etat: 'absente', message: 'Le compteur n’est pas encore installé sur Supabase.' }; return; }
+      if (!r.ok) throw new Error();
+      var p = await r.json();
+      D.parcours = p ? sourceParcours(p.lignes || []) : { etat: 'erreur', message: 'La clé n’ouvre pas le parcours.' };
+    } catch (e) {
+      D.parcours = { etat: 'erreur', message: 'Le parcours ne répond pas pour l’instant.' };
+    }
+  }
+
   function sourceApple(jours) {
     var connus = Object.keys(jours).filter(function (j) { return jours[j]; }).sort();
     if (!connus.length) return { etat: 'erreur', message: 'Apple n’a encore publié aucun jour.' };
@@ -816,6 +925,8 @@
       $('ecran-cle').hidden = true; $('tableau').hidden = false;
       D.lien = sourceLien(lien.lignes || []);
       CARTES.forEach(rendre);
+      // Le parcours arrive à côté, sans attendre Apple ni RevenueCat.
+      chargerParcours().then(function () { CARTES.filter(function (c) { return c.source === 'parcours'; }).forEach(rendre); });
 
       // Les jours Apple qui manquent encore dans ce navigateur (du plus récent au plus ancien).
       var memo = memoApple(), besoin = [];
@@ -861,6 +972,20 @@
       }
     });
     D.lien = sourceLien(lignes);
+    // Un parcours inventé : chaque écran perd un peu de monde, deux versions de l'app se suivent.
+    var lignesP = [];
+    suite(jourDans('Europe/Paris', 40), jourDans('Europe/Paris')).forEach(function (j, i) {
+      var v = i < 25 ? '1.0.2' : '1.0.3', n = Math.round(12 + hasard() * 20), vu = {};
+      ETAPES.forEach(function (e, k) {
+        var garde = { paywall: 0.8, bouton: v === '1.0.3' ? 0.35 : 0.25, essai: 0.7 }[e[0]] || (0.86 + hasard() * 0.12);
+        if (k) n = Math.round(n * garde);
+        vu[e[0]] = n;
+      });
+      vu.offre = vu.paywall + 1; vu.annule = vu.bouton - vu.essai; vu.erreur = 0;
+      vu.rattrapage = Math.round((vu.paywall - vu.essai) * 0.9); vu.fin = vu.paywall; vu.avis = Math.round(vu.essai * 0.8);
+      ETAPES.concat(A_COTE).forEach(function (e) { if (vu[e[0]] > 0) lignesP.push({ jour: j, etape: e[0], version: v, n: vu[e[0]] }); });
+    });
+    D.parcours = sourceParcours(lignesP);
     var instances = {};
     utc.forEach(function (j, i) {
       var t = Math.round(20 + i * 1.5);
