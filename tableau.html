@@ -135,6 +135,14 @@
   .entonnoir b { text-align: right; font-variant-numeric: tabular-nums; }
   .entonnoir em { font-style: normal; text-align: right; color: var(--gris); font-size: .8rem; font-variant-numeric: tabular-nums; }
   .entonnoir-titre { font-size: .8rem; color: var(--gris); font-weight: 500; margin: 1.1rem 0 .2rem; }
+  /* La cascade de « Brut et net » : des montants en euros, plus larges que des nombres de personnes. */
+  .cascade li { grid-template-columns: minmax(6.5rem, 15rem) minmax(1.5rem, 1fr) 5.2rem 2.6rem; gap: .6rem; }
+  .cascade li.fort > span { color: var(--encre); font-weight: 600; }
+  .cascade li:not(.fort) > span { padding-left: .9rem; }
+  @media (max-width: 520px) {
+    .cascade li { grid-template-columns: 1fr 5.2rem 2.6rem; }
+    .cascade .barre { display: none; }
+  }
 
   .calendrier {
     position: absolute; right: 1rem; top: 3rem; z-index: 10; background: #0b0e12; border: 1px solid var(--grille);
@@ -184,6 +192,8 @@
 
     <h2 class="section">Monétisation · RevenueCat</h2>
     <div class="grille" id="s-monetisation"></div>
+    <h2 class="section">Brut et net · ce qui te reste</h2>
+    <div class="grille" id="s-net"></div>
     <h2 class="section">Acquisition</h2>
     <div class="grille" id="s-acquisition"></div>
     <h2 class="section">Parcours · de l'ouverture à l'essai</h2>
@@ -203,6 +213,17 @@
   var MEMO_APPLE = 'traverse-apple-jours-v1';      // les jours Apple déjà publiés (ils ne changent plus)
   var MEMO_SOURCES = 'traverse-apple-sources-v1';  // les rapports d'analyse d'Apple déjà lus (idem)
   var HISTOIRE = 90;
+  /**
+   * Ce qui part d'un paiement avant d'arriver chez toi (carte « Brut et net », 1er oct. 2026).
+   * tva : la TVA française, comprise dans le prix payé ; Apple la reverse à l'État à ta place.
+   * apple : sa part du prix hors TVA — 15 % avec le programme des petits développeurs (Small Business Program).
+   * urssaf : ce que l'URSSAF prend sur ce qu'Apple te verse, à chaque déclaration. La micro-entreprise est
+   *   déclarée en programmation informatique (62.01Z), une activité libérale non réglementée : 25,6 % de
+   *   cotisations en 2026 (urssaf.fr), plus 0,2 % pour la formation professionnelle. À revoir chaque janvier.
+   */
+  var TAUX = { tva: 0.20, apple: 0.15, urssaf: 0.258 };
+  /** Le prix de l'abonnement annuel, pour l'exemple « un abonnement te laisse… ». */
+  var PRIX_ANNUEL = 36.99;
   /** Le lien de la bio ne compte qu'à partir de là (remise à zéro du 29 sept., comme sur /stats). */
   var DEPART = { jour: '2026-09-29', heure: 10 };
   var DEMO = /[?&]demo\b/.test(location.search);
@@ -309,6 +330,9 @@
       pied: 'RevenueCat · revenu brut, avant la part d’Apple et les taxes · jours UTC' },
     { id: 'remboursements', section: 'monetisation', titre: 'Taux de remboursement', source: 'rc', graphe: 'refund_rate', type: 'remboursement', couleur: 'var(--rouge)',
       pied: 'RevenueCat · achats payants remboursés ÷ achats payants (essais exclus), comptés au jour de l’achat : un jour passé peut encore bouger · jours UTC' },
+    { id: 'net', section: 'net', titre: 'Revenu brut et net', source: 'rc', graphe: 'revenue', type: 'net',
+      pied: 'Calculé à partir du revenu brut de RevenueCat · TVA française de 20 %, comprise dans le prix et reversée à l’État par Apple · part d’Apple : 15 % du prix hors TVA (programme des petits développeurs) · URSSAF : ' +
+        (100 * TAUX.urssaf).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' % de ce qu’Apple te verse (taux 2026 d’une activité libérale : 25,6 % de cotisations et 0,2 % pour la formation) · une estimation : l’impôt sur le revenu n’est pas compté · jours UTC' },
     { id: 'partages', section: 'usage', titre: 'Voyages partagés', source: 'partages', type: 'barres', couleur: 'var(--magenta)',
       modes: true, unite: ['voyage partagé', 'voyages partagés'], pied: 'Supabase · liens de partage créés depuis l’app · heure de Paris' },
     { id: 'appels-ia', section: 'ia', titre: 'Appels à l’IA', source: 'ia', type: 'ia', mesure: 'appels', modes: true,
@@ -431,6 +455,7 @@
 
     if (c.type === 'donut') { rendreDonut(c, s, jours, corps); return; }
     if (c.type === 'parcours') { rendreParcours(c, s, jours, corps); return; }
+    if (c.type === 'net') { rendreNet(c, s, jours, prec, libelleAvant, corps); return; }
 
     if (c.type === 'sources') {
       var parSource = SOURCES.map(function (src) { return { nom: src.nom, couleur: src.couleur, valeurs: jours.map(function (j) { return s.parSource(j)[src.nom] || 0; }) }; });
@@ -597,6 +622,67 @@
     var visibles = series.filter(function (se) { return se.valeurs.some(function (v) { return v > 0; }); });
     graphe(zone, { type: 'barres', empile: true, dollars: cout, jours: jours, series: visibles.length ? visibles : series.slice(0, 1) });
     legende.innerHTML = series.map(function (se) { return '<span><i style="background:' + se.couleur + '"></i>' + esc(se.nom) + '</span>'; }).join('');
+  }
+
+  /**
+   * Ce que devient un paiement : la TVA sort d'abord (Apple la reverse à l'État), puis la part d'Apple
+   * sur le prix hors TVA ; le reste est versé par Apple, et l'URSSAF prend sa part de ce versement.
+   */
+  function partage(brut) {
+    var ht = brut / (1 + TAUX.tva), apple = ht * TAUX.apple, verse = ht - apple, urssaf = verse * TAUX.urssaf;
+    return { brut: brut, tva: brut - ht, apple: apple, verse: verse, urssaf: urssaf, net: verse - urssaf };
+  }
+  var taux = function (t) { return (100 * t).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %'; };
+
+  /**
+   * Brut et net : ce qui reste pour toi sur la période, la cascade du prix payé jusqu'à ce qui te reste,
+   * et les jours empilés. Tant qu'aucun paiement n'est arrivé, la cascade montre un abonnement annuel.
+   */
+  function rendreNet(c, s, jours, prec, libelleAvant, corps) {
+    var parJour = jours.map(function (j) { return partage(s.valeur(j) || 0); });
+    var t = partage(parJour.reduce(function (x, p) { return x + p.brut; }, 0));
+    var un = partage(PRIX_ANNUEL);
+    var precedent = prec ? partage(somme(s, prec)).net : null;
+    var d = function (v) { return euros(v, 2); };
+
+    var h = '<div class="hero"><b style="color:var(--aqua)">' + (t.brut ? d(t.net) : '0 €') + '</b><span class="sous">' +
+      (t.brut
+        ? 'pour toi ' + duree(c, jours) + ' · sur ' + d(t.brut) + ' payés par les clients' + ecart(t.net, precedent, libelleAvant)
+        : 'pour toi ' + duree(c, jours) + ' · aucun paiement pour l’instant') +
+      '</span></div>';
+
+    // La cascade : du prix payé à ce qui te reste, chaque ligne rapportée au prix payé.
+    var base = t.brut ? t : un;
+    var ligne = function (nom, v, couleur, signe, fort) {
+      return '<li' + (fort ? ' class="fort"' : '') + '><span>' + nom + '</span><div class="barre"><span style="width:' + (100 * v / base.brut) + '%;background:' + couleur + '"></span></div>' +
+        '<b>' + (signe || '') + d(v) + '</b><em>' + Math.round(100 * v / base.brut) + ' %</em></li>';
+    };
+    h += '<p class="entonnoir-titre">' + (t.brut ? 'Où part l’argent ' + duree(c, jours) : 'Pour un abonnement annuel à ' + d(PRIX_ANNUEL)) + '</p>' +
+      '<ul class="entonnoir cascade">' +
+      ligne('Payé par les clients', base.brut, 'var(--jaune)', '', true) +
+      ligne('TVA (' + taux(TAUX.tva) + ')', base.tva, 'var(--autres)', '− ') +
+      ligne('Part d’Apple (' + taux(TAUX.apple) + ')', base.apple, 'var(--orange)', '− ') +
+      ligne('Versé par Apple', base.verse, 'var(--bleu)', '', true) +
+      ligne('URSSAF (' + taux(TAUX.urssaf) + ')', base.urssaf, 'var(--violet)', '− ') +
+      ligne('Pour toi', base.net, 'var(--aqua)', '', true) +
+      '</ul>';
+    if (t.brut) h += '<p class="pied" style="margin-top:.6rem">Un abonnement annuel à ' + d(PRIX_ANNUEL) + ' te laisse <b style="color:var(--doux)">' + d(un.net) + '</b>.</p>';
+
+    if (!t.brut) { corps.innerHTML = h; return; }
+
+    // Les jours : chaque barre est le prix payé, découpé en ce qui te reste et ce qui part.
+    var PARTS = [['net', 'Pour toi', 'var(--aqua)'], ['urssaf', 'URSSAF', 'var(--violet)'], ['apple', 'Apple', 'var(--orange)'], ['tva', 'TVA', 'var(--autres)']];
+    h += '<div class="zone" style="margin-top:.9rem"><svg class="graphe" role="img" aria-label="Revenu brut et net par jour"></svg><div class="bulle"></div></div><div class="legende"></div>';
+    corps.innerHTML = h;
+    graphe(corps.querySelector('.zone'), {
+      type: 'barres', empile: true, euros: true, jours: jours,
+      series: PARTS.map(function (p) { return { nom: p[1], couleur: p[2], valeurs: parJour.map(function (x) { return x[p[0]]; }) }; }),
+      bulle: function (i) {
+        var x = parJour[i];
+        return 'Payé : <b>' + d(x.brut) + '</b><br>' + PARTS.map(function (p) { return '<i style="background:' + p[2] + '"></i>' + p[1] + ' : <b>' + d(x[p[0]]) + '</b>'; }).join('<br>');
+      }
+    });
+    corps.querySelector('.legende').innerHTML = PARTS.map(function (p) { return '<span><i style="background:' + p[2] + '"></i>' + p[1] + '</span>'; }).join('');
   }
 
   /**
