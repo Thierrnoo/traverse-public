@@ -139,7 +139,6 @@
   .cascade li { grid-template-columns: minmax(6.5rem, 15rem) minmax(1.5rem, 1fr) 5.2rem 2.6rem; gap: .6rem; }
   .cascade li.fort > span { color: var(--encre); font-weight: 600; }
   .cascade li:not(.fort) > span { padding-left: .9rem; }
-  .simu { margin: .1rem 0 .2rem; }
   .simu-champ { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; font-size: .9rem; color: var(--doux); margin: .7rem 0 .1rem; }
   .simu-champ input {
     font: inherit; font-size: 1.05rem; font-weight: 600; width: 9rem; text-align: right; color: var(--encre);
@@ -326,7 +325,7 @@
       pied: 'L’app · combien de personnes arrivent à chaque écran, une fois par téléphone, sans identifiant · pourcentages par rapport à « Ouvre l’app » · heure de Paris · compté à partir de la version qui porte le compteur' },
     // Le revenu d'abord, en haut à gauche (1er oct.) : c'est la carte qu'on ouvre la page pour lire.
     { id: 'revenu', section: 'monetisation', titre: 'Revenu', source: 'rc', graphe: 'revenue', type: 'barres', couleur: 'var(--jaune)', euros: true,
-      modes: [['brut', 'Brut'], ['net', 'Net']], modeDefaut: 'brut',
+      modes: [['brut', 'Brut'], ['net', 'Net'], ['simulateur', 'Simulateur']], modeDefaut: 'brut',
       pied: 'RevenueCat · revenu brut, avant la part d’Apple et les taxes · jours UTC',
       piedNet: 'Calculé à partir du revenu brut de RevenueCat · TVA française de 20 %, comprise dans le prix et reversée à l’État par Apple · part d’Apple : 15 % du prix hors TVA (programme des petits développeurs) · URSSAF : ' +
         (100 * TAUX.urssaf).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' % de ce qu’Apple te verse (taux 2026 d’une activité libérale : 25,6 % de cotisations et 0,2 % pour la formation) · une estimation : l’impôt sur le revenu n’est pas compté · jours UTC' },
@@ -377,7 +376,6 @@
         else if (b.dataset.n) { st.n = +b.dataset.n; st.du = st.au = ''; cal.hidden = true; }
         else if (b.dataset.cal) { ouvrirCalendrier(c); return; }
         else if (b.hasAttribute('data-version')) { st.version = b.dataset.version; }
-        else if (b.hasAttribute('data-simuler')) { st.simuler = !st.simuler; }
         else if (b.hasAttribute('data-effacer')) { st.du = st.au = ''; cal.hidden = true; }
         else if (b.hasAttribute('data-appliquer')) {
           var du = cal.querySelector('[data-du]').value, au = cal.querySelector('[data-au]').value;
@@ -462,8 +460,8 @@
     if (c.type === 'donut') { rendreDonut(c, s, jours, corps); return; }
     if (c.type === 'parcours') { rendreParcours(c, s, jours, corps); return; }
     // Le revenu, brut ou net : le pied de la carte dit d'où vient le chiffre montré.
-    if (c.piedNet) c.el.querySelector(':scope > .pied').innerHTML = st.mode === 'net' ? c.piedNet : c.pied;
-    if (c.id === 'revenu' && st.mode === 'net') { rendreNet(c, s, jours, prec, libelleAvant, corps); return; }
+    if (c.piedNet) c.el.querySelector(':scope > .pied').innerHTML = st.mode === 'brut' ? c.pied : c.piedNet;
+    if (c.id === 'revenu' && st.mode !== 'brut') { rendreNet(c, s, jours, prec, libelleAvant, corps); return; }
 
     if (c.type === 'sources') {
       var parSource = SOURCES.map(function (src) { return { nom: src.nom, couleur: src.couleur, valeurs: jours.map(function (j) { return s.parSource(j)[src.nom] || 0; }) }; });
@@ -668,21 +666,22 @@
   }
 
   /**
-   * Brut et net : ce qui reste pour toi sur la période, la cascade du prix payé jusqu'à ce qui te reste,
-   * et les jours empilés. Tant qu'aucun paiement n'est arrivé, la cascade montre un abonnement annuel.
+   * Net : ce qui reste pour toi sur la période, la cascade du prix payé jusqu'à ce qui te reste, et les
+   * jours empilés.
    *
-   * Le simulateur (1er oct.) : coché, on tape un montant payé par les clients et la carte dit ce qui
-   * arriverait dans ta poche ; décoché, on retrouve les vrais chiffres. Le montant tapé reste le temps
-   * de la page.
+   * Simulateur (1er oct.), le troisième bouton de la carte, à côté de « Brut » et « Net » : on tape un
+   * montant payé par les clients et la carte dit ce qui arriverait dans ta poche. Il était d'abord caché
+   * dans la vue « Net », et ne se trouvait pas. Le montant tapé reste le temps de la page ; la période
+   * (7j, 30j…) ne veut rien dire pour une simulation, elle se cache.
    */
   function rendreNet(c, s, jours, prec, libelleAvant, corps) {
     var st = c.etat, d = d2;
-    var un = partage(PRIX_ANNUEL);
-    var bouton = '<div class="pilules simu"><button class="pil" type="button" data-simuler="1" aria-pressed="' + !!st.simuler + '">Simulateur</button></div>';
+    var simuler = st.mode === 'simulateur';
+    c.el.querySelector('.pilules.periode').hidden = simuler;
 
-    if (st.simuler) {
+    if (simuler) {
       if (st.montant === undefined) st.montant = 1000;
-      corps.innerHTML = '<div class="hero"><b style="color:var(--aqua)"></b><span class="sous"></span></div>' + bouton +
+      corps.innerHTML = '<div class="hero"><b style="color:var(--aqua)"></b><span class="sous"></span></div>' +
         '<label class="simu-champ"><span>Si les clients paient</span><input type="text" inputmode="decimal" autocomplete="off" value="' +
         (st.montant ? String(st.montant).replace('.', ',') : '') + '"><span>€</span></label><div data-cascade></div>';
       var champ = corps.querySelector('.simu-champ input');
@@ -707,11 +706,13 @@
       (t.brut
         ? 'pour toi ' + duree(c, jours) + ' · sur ' + d(t.brut) + ' payés par les clients' + ecart(t.net, precedent, libelleAvant)
         : 'pour toi ' + duree(c, jours) + ' · aucun paiement pour l’instant') +
-      '</span></div>' + bouton;
-    h += t.brut ? cascade(t, 'Où part l’argent ' + duree(c, jours)) : cascade(un, 'Pour un abonnement annuel à ' + d(PRIX_ANNUEL));
-    if (t.brut) h += '<p class="pied" style="margin-top:.6rem">Un abonnement annuel à ' + d(PRIX_ANNUEL) + ' te laisse <b style="color:var(--doux)">' + d(un.net) + '</b>.</p>';
-
-    if (!t.brut) { corps.innerHTML = h; return; }
+      '</span></div>';
+    // Sans paiement, les vrais chiffres seulement : les exemples, c'est le simulateur qui les donne.
+    if (!t.brut) {
+      corps.innerHTML = h + '<div class="vide" style="min-height:120px"><div><strong>Aucun paiement ' + duree(c, jours) + '</strong>Touche « Simulateur » pour voir ce qu’un montant te laisserait.</div></div>';
+      return;
+    }
+    h += cascade(t, 'Où part l’argent ' + duree(c, jours));
 
     // Les jours : chaque barre est le prix payé, découpé en ce qui te reste et ce qui part.
     var PARTS = [['net', 'Pour toi', 'var(--aqua)'], ['urssaf', 'URSSAF', 'var(--violet)'], ['apple', 'Apple', 'var(--orange)'], ['tva', 'TVA', 'var(--autres)']];
