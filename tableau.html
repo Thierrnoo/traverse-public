@@ -192,8 +192,6 @@
 
     <h2 class="section">Monétisation · RevenueCat</h2>
     <div class="grille" id="s-monetisation"></div>
-    <h2 class="section">Brut et net · ce qui te reste</h2>
-    <div class="grille" id="s-net"></div>
     <h2 class="section">Acquisition</h2>
     <div class="grille" id="s-acquisition"></div>
     <h2 class="section">Parcours · de l'ouverture à l'essai</h2>
@@ -320,19 +318,20 @@
       pied: 'Visites de traverse-app.fr/app, selon l’app où le lien a été ouvert et le type d’appareil · sans cookie ni identifiant' },
     { id: 'parcours', section: 'parcours', titre: 'Où les gens s’arrêtent', source: 'parcours', type: 'parcours',
       pied: 'L’app · combien de personnes arrivent à chaque écran, une fois par téléphone, sans identifiant · pourcentages par rapport à « Ouvre l’app » · heure de Paris · compté à partir de la version qui porte le compteur' },
-    { id: 'abonnes', section: 'monetisation', titre: 'Abonnés actifs', source: 'rc', graphe: 'actives', type: 'aire', couleur: 'var(--aqua)',
-      unite: ['abonné', 'abonnés'], pied: 'RevenueCat · abonnements payants en cours, jour par jour' },
+    // Le revenu d'abord, en haut à gauche (1er oct.) : c'est la carte qu'on ouvre la page pour lire.
+    { id: 'revenu', section: 'monetisation', titre: 'Revenu', source: 'rc', graphe: 'revenue', type: 'barres', couleur: 'var(--jaune)', euros: true,
+      modes: [['brut', 'Brut'], ['net', 'Net']], modeDefaut: 'brut',
+      pied: 'RevenueCat · revenu brut, avant la part d’Apple et les taxes · jours UTC',
+      piedNet: 'Calculé à partir du revenu brut de RevenueCat · TVA française de 20 %, comprise dans le prix et reversée à l’État par Apple · part d’Apple : 15 % du prix hors TVA (programme des petits développeurs) · URSSAF : ' +
+        (100 * TAUX.urssaf).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' % de ce qu’Apple te verse (taux 2026 d’une activité libérale : 25,6 % de cotisations et 0,2 % pour la formation) · une estimation : l’impôt sur le revenu n’est pas compté · jours UTC' },
     { id: 'essais', section: 'monetisation', titre: 'Essais actifs', source: 'rc', graphe: 'trials', type: 'aire', couleur: 'var(--bleu)',
       unite: ['essai en cours', 'essais en cours'], pied: 'RevenueCat · essais gratuits de 7 jours en cours' },
     { id: 'nouveaux-essais', section: 'monetisation', titre: 'Nouveaux essais / jour', source: 'rc', graphe: 'trials_new', type: 'barres', couleur: 'var(--violet)',
       modes: true, unite: ['essai', 'essais'], pied: 'RevenueCat · essais démarrés · jours UTC' },
-    { id: 'revenu', section: 'monetisation', titre: 'Revenu', source: 'rc', graphe: 'revenue', type: 'barres', couleur: 'var(--jaune)', euros: true,
-      pied: 'RevenueCat · revenu brut, avant la part d’Apple et les taxes · jours UTC' },
+    { id: 'abonnes', section: 'monetisation', titre: 'Abonnés actifs', source: 'rc', graphe: 'actives', type: 'aire', couleur: 'var(--aqua)',
+      unite: ['abonné', 'abonnés'], pied: 'RevenueCat · abonnements payants en cours, jour par jour' },
     { id: 'remboursements', section: 'monetisation', titre: 'Taux de remboursement', source: 'rc', graphe: 'refund_rate', type: 'remboursement', couleur: 'var(--rouge)',
       pied: 'RevenueCat · achats payants remboursés ÷ achats payants (essais exclus), comptés au jour de l’achat : un jour passé peut encore bouger · jours UTC' },
-    { id: 'net', section: 'net', titre: 'Revenu brut et net', source: 'rc', graphe: 'revenue', type: 'net',
-      pied: 'Calculé à partir du revenu brut de RevenueCat · TVA française de 20 %, comprise dans le prix et reversée à l’État par Apple · part d’Apple : 15 % du prix hors TVA (programme des petits développeurs) · URSSAF : ' +
-        (100 * TAUX.urssaf).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' % de ce qu’Apple te verse (taux 2026 d’une activité libérale : 25,6 % de cotisations et 0,2 % pour la formation) · une estimation : l’impôt sur le revenu n’est pas compté · jours UTC' },
     { id: 'partages', section: 'usage', titre: 'Voyages partagés', source: 'partages', type: 'barres', couleur: 'var(--magenta)',
       modes: true, unite: ['voyage partagé', 'voyages partagés'], pied: 'Supabase · liens de partage créés depuis l’app · heure de Paris' },
     { id: 'appels-ia', section: 'ia', titre: 'Appels à l’IA', source: 'ia', type: 'ia', mesure: 'appels', modes: true,
@@ -455,7 +454,9 @@
 
     if (c.type === 'donut') { rendreDonut(c, s, jours, corps); return; }
     if (c.type === 'parcours') { rendreParcours(c, s, jours, corps); return; }
-    if (c.type === 'net') { rendreNet(c, s, jours, prec, libelleAvant, corps); return; }
+    // Le revenu, brut ou net : le pied de la carte dit d'où vient le chiffre montré.
+    if (c.piedNet) c.el.querySelector(':scope > .pied').innerHTML = st.mode === 'net' ? c.piedNet : c.pied;
+    if (c.id === 'revenu' && st.mode === 'net') { rendreNet(c, s, jours, prec, libelleAvant, corps); return; }
 
     if (c.type === 'sources') {
       var parSource = SOURCES.map(function (src) { return { nom: src.nom, couleur: src.couleur, valeurs: jours.map(function (j) { return s.parSource(j)[src.nom] || 0; }) }; });
