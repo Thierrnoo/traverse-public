@@ -139,6 +139,12 @@
   .cascade li { grid-template-columns: minmax(6.5rem, 15rem) minmax(1.5rem, 1fr) 5.2rem 2.6rem; gap: .6rem; }
   .cascade li.fort > span { color: var(--encre); font-weight: 600; }
   .cascade li:not(.fort) > span { padding-left: .9rem; }
+  .simu { margin: .1rem 0 .2rem; }
+  .simu-champ { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; font-size: .9rem; color: var(--doux); margin: .7rem 0 .1rem; }
+  .simu-champ input {
+    font: inherit; font-size: 1.05rem; font-weight: 600; width: 9rem; text-align: right; color: var(--encre);
+    background: var(--fond); border: 1px solid var(--grille); border-radius: 10px; padding: .5rem .7rem;
+  }
   @media (max-width: 520px) {
     .cascade li { grid-template-columns: 1fr 5.2rem 2.6rem; }
     .cascade .barre { display: none; }
@@ -371,6 +377,7 @@
         else if (b.dataset.n) { st.n = +b.dataset.n; st.du = st.au = ''; cal.hidden = true; }
         else if (b.dataset.cal) { ouvrirCalendrier(c); return; }
         else if (b.hasAttribute('data-version')) { st.version = b.dataset.version; }
+        else if (b.hasAttribute('data-simuler')) { st.simuler = !st.simuler; }
         else if (b.hasAttribute('data-effacer')) { st.du = st.au = ''; cal.hidden = true; }
         else if (b.hasAttribute('data-appliquer')) {
           var du = cal.querySelector('[data-du]').value, au = cal.querySelector('[data-au]').value;
@@ -635,31 +642,16 @@
   }
   var taux = function (t) { return (100 * t).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' %'; };
 
-  /**
-   * Brut et net : ce qui reste pour toi sur la période, la cascade du prix payé jusqu'à ce qui te reste,
-   * et les jours empilés. Tant qu'aucun paiement n'est arrivé, la cascade montre un abonnement annuel.
-   */
-  function rendreNet(c, s, jours, prec, libelleAvant, corps) {
-    var parJour = jours.map(function (j) { return partage(s.valeur(j) || 0); });
-    var t = partage(parJour.reduce(function (x, p) { return x + p.brut; }, 0));
-    var un = partage(PRIX_ANNUEL);
-    var precedent = prec ? partage(somme(s, prec)).net : null;
-    var d = function (v) { return euros(v, 2); };
+  var d2 = function (v) { return euros(v, 2); };
 
-    var h = '<div class="hero"><b style="color:var(--aqua)">' + (t.brut ? d(t.net) : '0 €') + '</b><span class="sous">' +
-      (t.brut
-        ? 'pour toi ' + duree(c, jours) + ' · sur ' + d(t.brut) + ' payés par les clients' + ecart(t.net, precedent, libelleAvant)
-        : 'pour toi ' + duree(c, jours) + ' · aucun paiement pour l’instant') +
-      '</span></div>';
-
-    // La cascade : du prix payé à ce qui te reste, chaque ligne rapportée au prix payé.
-    var base = t.brut ? t : un;
+  /** La cascade : du prix payé à ce qui te reste, chaque ligne rapportée au prix payé. */
+  function cascade(base, titre) {
+    var part = function (v) { return base.brut ? v / base.brut : 0; };
     var ligne = function (nom, v, couleur, signe, fort) {
-      return '<li' + (fort ? ' class="fort"' : '') + '><span>' + nom + '</span><div class="barre"><span style="width:' + (100 * v / base.brut) + '%;background:' + couleur + '"></span></div>' +
-        '<b>' + (signe || '') + d(v) + '</b><em>' + Math.round(100 * v / base.brut) + ' %</em></li>';
+      return '<li' + (fort ? ' class="fort"' : '') + '><span>' + nom + '</span><div class="barre"><span style="width:' + (100 * part(v)) + '%;background:' + couleur + '"></span></div>' +
+        '<b>' + (signe || '') + d2(v) + '</b><em>' + (base.brut ? Math.round(100 * part(v)) + ' %' : '') + '</em></li>';
     };
-    h += '<p class="entonnoir-titre">' + (t.brut ? 'Où part l’argent ' + duree(c, jours) : 'Pour un abonnement annuel à ' + d(PRIX_ANNUEL)) + '</p>' +
-      '<ul class="entonnoir cascade">' +
+    return '<p class="entonnoir-titre">' + titre + '</p><ul class="entonnoir cascade">' +
       ligne('Payé par les clients', base.brut, 'var(--jaune)', '', true) +
       ligne('TVA (' + taux(TAUX.tva) + ')', base.tva, 'var(--autres)', '− ') +
       ligne('Part d’Apple (' + taux(TAUX.apple) + ')', base.apple, 'var(--orange)', '− ') +
@@ -667,6 +659,56 @@
       ligne('URSSAF (' + taux(TAUX.urssaf) + ')', base.urssaf, 'var(--violet)', '− ') +
       ligne('Pour toi', base.net, 'var(--aqua)', '', true) +
       '</ul>';
+  }
+
+  /** « 1 234,5 », « 1234.50 € » : ce qu'on tape dans le simulateur, en euros. */
+  function lireMontant(texte) {
+    var v = parseFloat(String(texte).replace(/[\s €]/g, '').replace(',', '.'));
+    return isFinite(v) && v > 0 ? v : 0;
+  }
+
+  /**
+   * Brut et net : ce qui reste pour toi sur la période, la cascade du prix payé jusqu'à ce qui te reste,
+   * et les jours empilés. Tant qu'aucun paiement n'est arrivé, la cascade montre un abonnement annuel.
+   *
+   * Le simulateur (1er oct.) : coché, on tape un montant payé par les clients et la carte dit ce qui
+   * arriverait dans ta poche ; décoché, on retrouve les vrais chiffres. Le montant tapé reste le temps
+   * de la page.
+   */
+  function rendreNet(c, s, jours, prec, libelleAvant, corps) {
+    var st = c.etat, d = d2;
+    var un = partage(PRIX_ANNUEL);
+    var bouton = '<div class="pilules simu"><button class="pil" type="button" data-simuler="1" aria-pressed="' + !!st.simuler + '">Simulateur</button></div>';
+
+    if (st.simuler) {
+      if (st.montant === undefined) st.montant = 1000;
+      corps.innerHTML = '<div class="hero"><b style="color:var(--aqua)"></b><span class="sous"></span></div>' + bouton +
+        '<label class="simu-champ"><span>Si les clients paient</span><input type="text" inputmode="decimal" autocomplete="off" value="' +
+        (st.montant ? String(st.montant).replace('.', ',') : '') + '"><span>€</span></label><div data-cascade></div>';
+      var champ = corps.querySelector('.simu-champ input');
+      var maj = function () {
+        st.montant = lireMontant(champ.value);
+        var p = partage(st.montant), n = st.montant / PRIX_ANNUEL;
+        corps.querySelector('.hero b').textContent = d(p.net);
+        corps.querySelector('.hero .sous').innerHTML = 'dans ta poche, pour ' + d(p.brut) + ' payés par les clients' +
+          (n >= 0.95 ? ' · soit environ ' + fmt(n) + ' ' + pluriel(n, ['abonnement annuel', 'abonnements annuels']) + ' à ' + d(PRIX_ANNUEL) : '');
+        corps.querySelector('[data-cascade]').innerHTML = cascade(p, 'Simulation');
+      };
+      champ.addEventListener('input', maj);
+      maj();
+      return;
+    }
+
+    var parJour = jours.map(function (j) { return partage(s.valeur(j) || 0); });
+    var t = partage(parJour.reduce(function (x, p) { return x + p.brut; }, 0));
+    var precedent = prec ? partage(somme(s, prec)).net : null;
+
+    var h = '<div class="hero"><b style="color:var(--aqua)">' + (t.brut ? d(t.net) : '0 €') + '</b><span class="sous">' +
+      (t.brut
+        ? 'pour toi ' + duree(c, jours) + ' · sur ' + d(t.brut) + ' payés par les clients' + ecart(t.net, precedent, libelleAvant)
+        : 'pour toi ' + duree(c, jours) + ' · aucun paiement pour l’instant') +
+      '</span></div>' + bouton;
+    h += t.brut ? cascade(t, 'Où part l’argent ' + duree(c, jours)) : cascade(un, 'Pour un abonnement annuel à ' + d(PRIX_ANNUEL));
     if (t.brut) h += '<p class="pied" style="margin-top:.6rem">Un abonnement annuel à ' + d(PRIX_ANNUEL) + ' te laisse <b style="color:var(--doux)">' + d(un.net) + '</b>.</p>';
 
     if (!t.brut) { corps.innerHTML = h; return; }
