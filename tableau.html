@@ -14,7 +14,8 @@
   Ce qui vient d'où :
     - le lien de la bio : la fonction Supabase stats_lien_bio (la même que traverse-app.fr/stats) ;
     - le parcours dans l'app (30 sept.) : la fonction Supabase stats_parcours_app, qui compte, sans
-      rien savoir des personnes, combien arrivent à chaque écran de l'accueil, jusqu'à l'essai ;
+      rien savoir des personnes, combien arrivent à chaque écran de l'accueil, jusqu'à l'essai ; depuis
+      le 9 oct., le nouvel accueil et l'ancien s'affichent côte à côte, chacun avec ses pourcentages ;
     - Apple, RevenueCat et les voyages partagés : la fonction Supabase « tableau-de-bord », qui garde
       les clés secrètes chez elle et ne renvoie que des totaux par jour ;
     - les appels à l'IA (30 sept.) : la fonction Supabase stats_appels_ia (chaque appel au modèle noté par
@@ -280,17 +281,40 @@
   /**
    * Les étapes du parcours, dans l'ordre où on les traverse (components/parcours.ts de l'app).
    * Chaque téléphone ne compte qu'une fois par étape : ce sont des personnes, pas des passages.
+   * « Langue » n'y est plus : l'app prend la langue du téléphone depuis la version 1.0.4 (6 oct. 2026).
    */
   var ETAPES = [
-    ['bienvenue', 'Ouvre l’app'], ['langue', 'Langue'], ['destination', 'Destination'], ['dates', 'Dates'],
+    ['bienvenue', 'Ouvre l’app'], ['destination', 'Destination'], ['dates', 'Dates'],
     ['couverture', 'Photo du voyage'], ['compagnons', 'Avec qui'], ['envies', 'Envies'], ['rythme', 'Rythme'],
     ['budget', 'Budget'], ['generation', 'Construction du Jour 1'], ['apercu', 'Aperçu du Jour 1'],
     ['rappel', 'Rappel de fin d’essai'], ['paywall', 'Offre de fin d’accueil'],
     ['bouton', 'Touche le bouton de l’essai'], ['essai', 'Essai démarré']
   ];
+  /**
+   * Le nouvel accueil (9 oct. 2026) : faire connaissance, l'offre, l'entrée dans l'app, puis la création du
+   * premier voyage — essai pris ou non, tout le monde passe par la page d'entrée. L'essai lui-même est
+   * « à côté », avec le détail de l'essai choisi.
+   */
+  var ETAPES_NOUVEL = [
+    ['bienvenue', 'Ouvre l’app'], ['idee', 'Un voyage en vue ?'], ['pret-voyage', 'Préparons Traverse'],
+    ['quand', 'C’est pour quand ?'], ['qui', 'Qui vient ?'], ['genre', 'Quel genre de voyage ?'],
+    ['gene', 'Le plus pénible'], ['profil', 'Top, ça nous aide'], ['prepa', 'Où en est la préparation ?'],
+    ['habitudes', 'Où vit ton plan ?'], ['chaos', 'Fini le chaos'], ['exemple', 'Une journée prête (exemple)'],
+    ['y-aller', 'Un geste pour y aller'], ['partout', 'Traverse te suit partout'], ['pret', 'C’est prêt'],
+    ['preparation', 'On prépare ton Traverse'], ['forme', 'Tes voyages vont changer'],
+    ['offert', 'On t’offre 7 jours'], ['rappel', 'Rappel avant la fin de l’essai'], ['page-essai', 'L’offre (Conçois ton essai)'],
+    ['entree', 'Entrée dans l’app'], ['destination', 'Destination'], ['dates', 'Dates'], ['couverture', 'Photo du voyage'],
+    ['envies', 'Envies'], ['rythme', 'Rythme'], ['budget', 'Budget'], ['generation', 'Construction du Jour 1'],
+    ['apercu', 'Aperçu du voyage'], ['fin', 'Accueil terminé']
+  ];
+  /** Les pages qui ne se voient que dans le nouvel accueil : une version qui les envoie le porte. */
+  var MARQUES_NOUVEL = ['idee', 'pret-voyage', 'quand', 'page-essai', 'entree'];
   var A_COTE = [
-    ['offre', 'Offre vue, où que ce soit'], ['annule', 'Fenêtre d’Apple refermée sans payer'], ['erreur', 'Achat en échec'],
-    ['rattrapage', 'Offre de rattrapage vue'], ['fin', 'Accueil terminé, essai ou non'], ['avis', 'Fenêtre d’avis demandée']
+    ['offre', 'Offre vue, où que ce soit'], ['bouton', 'Touche le bouton de l’essai'], ['essai', 'Essai démarré'],
+    ['essai-7', '… l’essai gratuit de 7 jours'], ['essai-30', '… le mois à 2,99 €'], ['essai-14', '… l’offre unique de 14 jours'],
+    ['abonne', 'Abonnement pris sans essai'], ['annule', 'Fenêtre d’Apple refermée sans payer'], ['erreur', 'Achat en échec'],
+    ['rattrapage', 'Cadeau (offre de rattrapage) vu'], ['offre-unique', 'Offre unique de 14 jours vue'],
+    ['debloquer', '« Débloquer mes journées » touché'], ['fin', 'Accueil terminé, essai ou non'], ['avis', 'Fenêtre d’avis demandée']
   ];
   var cle = '';
 
@@ -748,14 +772,20 @@
   function rendreParcours(c, s, jours, corps) {
     var st = c.etat, versions = s.versions;
     if (st.version && versions.indexOf(st.version) < 0) st.version = '';
-    var compte = function (etape) {
+    // Combien de personnes à cette étape, pour les versions que `garder` retient.
+    var compte = function (etape, garder) {
       return jours.reduce(function (t, j) {
         var parVersion = s.jour(j)[etape] || {};
-        return t + Object.keys(parVersion).reduce(function (u, v) { return u + (!st.version || v === st.version ? parVersion[v] : 0); }, 0);
+        return t + Object.keys(parVersion).reduce(function (u, v) { return u + (garder(v) ? parVersion[v] : 0); }, 0);
       }, 0);
     };
-    var n = ETAPES.map(function (e) { return compte(e[0]); });
-    var depart = n[0], essais = n[n.length - 1];
+    // Les versions qui portent le nouvel accueil (9 oct.) : celles qui ont envoyé une de ses pages.
+    var nouvelle = {};
+    versions.forEach(function (v) {
+      nouvelle[v] = jours.some(function (j) { var t = s.jour(j); return MARQUES_NOUVEL.some(function (e) { return t[e] && t[e][v]; }); });
+    });
+    var toutes = function (v) { return !st.version || v === st.version; };
+    var depart = compte('bienvenue', toutes), essais = compte('essai', toutes);
     var h = '<div class="hero"><b style="color:var(--encre)">' + fmt(depart) + '</b><span class="sous">' + pluriel(depart, ['personne a ouvert l’app', 'personnes ont ouvert l’app']) + ' ' + duree(c, jours) +
       ' · <span style="color:var(--aqua)">' + fmt(essais) + ' ' + pluriel(essais, ['essai', 'essais']) + (depart ? ' (' + Math.round(100 * essais / depart) + ' %)' : '') + '</span></span></div>';
     if (versions.length > 1) {
@@ -763,23 +793,45 @@
         return '<button class="pil" data-version="' + esc(v[0]) + '" aria-pressed="' + (v[0] === (st.version || '')) + '">' + esc(v[1]) + '</button>';
       }).join('') + '</div>';
     }
-    if (!n.some(Boolean) && !A_COTE.some(function (e) { return compte(e[0]); })) {
+    if (!depart && !A_COTE.some(function (e) { return compte(e[0], toutes); })) {
       corps.innerHTML = h + '<div class="vide"><div><strong>Personne encore ' + duree(c, jours) + '</strong>Le compteur arrive avec la version de l’app qui le porte.</div></div>';
       return;
     }
-    // La plus grosse perte d'un écran au suivant.
-    var pire = -1, perte = 0;
-    for (var k = 1; k < n.length; k++) if (n[k - 1] - n[k] > perte) { perte = n[k - 1] - n[k]; pire = k; }
     var ligne = function (nom, v, base, couleur, note) {
       return '<li><span>' + esc(nom) + (note || '') + '</span><div class="barre"><span style="width:' + (base ? Math.min(100, 100 * v / base) : 0) + '%;background:' + couleur + '"></span></div>' +
         '<b>' + fmt(v) + '</b><em>' + (base ? Math.round(100 * v / base) + ' %' : '') + '</em></li>';
     };
-    h += '<ul class="entonnoir">' + ETAPES.map(function (e, i) {
-      var note = i === pire ? '<small>▼ ' + fmt(perte) + ' ' + pluriel(perte, ['personne perdue', 'personnes perdues']) + ' ici, la plus grosse perte</small>' : '';
-      return ligne(e[1], n[i], depart, e[0] === 'essai' ? 'var(--aqua)' : 'var(--bleu)', note);
-    }).join('') + '</ul>';
-    h += '<p class="entonnoir-titre">À côté</p><ul class="entonnoir">' + A_COTE.map(function (e) {
-      return ligne(e[1], compte(e[0]), depart, 'var(--autres)');
+    // Un entonnoir : chaque écran par rapport au premier, et la plus grosse perte d'un écran au suivant.
+    var entonnoir = function (liste, garder) {
+      var n = liste.map(function (e) { return compte(e[0], garder); });
+      var pire = -1, perte = 0;
+      for (var k = 1; k < n.length; k++) if (n[k - 1] - n[k] > perte) { perte = n[k - 1] - n[k]; pire = k; }
+      return '<ul class="entonnoir">' + liste.map(function (e, i) {
+        var note = i === pire ? '<small>▼ ' + fmt(perte) + ' ' + pluriel(perte, ['personne perdue', 'personnes perdues']) + ' ici, la plus grosse perte</small>' : '';
+        return ligne(e[1], n[i], n[0], e[0] === 'essai' ? 'var(--aqua)' : 'var(--bleu)', note);
+      }).join('') + '</ul>';
+    };
+    // Une version choisie : son accueil. Toutes : le nouvel accueil et l'ancien, l'un sous l'autre, pour
+    // les comparer — chacun avec ses propres pourcentages.
+    var groupes = [];
+    if (st.version) {
+      groupes.push({ liste: nouvelle[st.version] ? ETAPES_NOUVEL : ETAPES, garder: toutes });
+    } else {
+      var nv = versions.filter(function (v) { return nouvelle[v]; }), an = versions.filter(function (v) { return !nouvelle[v]; });
+      var nom = function (vs) { return vs.length ? ' · ' + pluriel(vs.length, ['version', 'versions']) + ' ' + vs.join(', ') : ''; };
+      if (nv.length) groupes.push({ titre: 'Nouvel accueil' + nom(nv), liste: ETAPES_NOUVEL, garder: function (v) { return nouvelle[v]; } });
+      if (an.length || !nv.length) groupes.push({ titre: nv.length ? 'Ancien accueil' + nom(an) : '', liste: ETAPES, garder: function (v) { return !nouvelle[v]; } });
+    }
+    groupes.forEach(function (g) {
+      if (g.titre && groupes.length > 1) h += '<p class="entonnoir-titre">' + esc(g.titre) + '</p>';
+      h += entonnoir(g.liste, g.garder);
+    });
+    // À côté : ce qui n'est pas déjà une marche de tous les entonnoirs affichés.
+    var aCote = A_COTE.filter(function (e) {
+      return !groupes.every(function (g) { return g.liste.some(function (x) { return x[0] === e[0]; }); });
+    });
+    h += '<p class="entonnoir-titre">À côté</p><ul class="entonnoir">' + aCote.map(function (e) {
+      return ligne(e[1], compte(e[0], toutes), depart, 'var(--autres)');
     }).join('') + '</ul>';
     corps.innerHTML = h;
   }
@@ -1212,18 +1264,31 @@
       }
     });
     D.lien = sourceLien(lignes);
-    // Un parcours inventé : chaque écran perd un peu de monde, deux versions de l'app se suivent.
+    // Un parcours inventé : chaque écran perd un peu de monde ; l'ancien accueil (1.0.3), puis le nouveau (1.1.0).
     var lignesP = [];
     suite(jourDans('Europe/Paris', 40), jourDans('Europe/Paris')).forEach(function (j, i) {
-      var v = i < 25 ? '1.0.2' : '1.0.3', n = Math.round(12 + hasard() * 20), vu = {};
-      ETAPES.forEach(function (e, k) {
-        var garde = { paywall: 0.8, bouton: v === '1.0.3' ? 0.35 : 0.25, essai: 0.7 }[e[0]] || (0.86 + hasard() * 0.12);
+      var nouveau = i >= 25, v = nouveau ? '1.1.0' : '1.0.3', n = Math.round(12 + hasard() * 20), vu = {};
+      (nouveau ? ETAPES_NOUVEL : ETAPES).forEach(function (e, k) {
+        var garde = { paywall: 0.8, bouton: 0.3, essai: 0.7, 'page-essai': 0.95, entree: 0.97 }[e[0]] || (0.9 + hasard() * 0.09);
         if (k) n = Math.round(n * garde);
         vu[e[0]] = n;
       });
-      vu.offre = vu.paywall + 1; vu.annule = vu.bouton - vu.essai; vu.erreur = 0;
-      vu.rattrapage = Math.round((vu.paywall - vu.essai) * 0.9); vu.fin = vu.paywall; vu.avis = Math.round(vu.essai * 0.8);
-      ETAPES.concat(A_COTE).forEach(function (e) { if (vu[e[0]] > 0) lignesP.push({ jour: j, etape: e[0], version: v, n: vu[e[0]] }); });
+      if (nouveau) {
+        vu.bouton = Math.round(vu['page-essai'] * 0.4); vu.essai = Math.round(vu.bouton * 0.7);
+        vu['essai-30'] = Math.round(vu.essai * 0.3); vu['essai-14'] = Math.round(vu.essai * 0.2);
+        vu['essai-7'] = vu.essai - vu['essai-30'] - vu['essai-14'];
+        vu.rattrapage = Math.round((vu['page-essai'] - vu.bouton) * 0.9); vu['offre-unique'] = Math.round(vu.rattrapage * 0.5);
+        vu.debloquer = Math.round(vu.apercu * 0.3); vu.offre = vu['page-essai'] + vu.debloquer;
+      } else {
+        vu.offre = vu.paywall + 1; vu.rattrapage = Math.round((vu.paywall - vu.essai) * 0.9); vu.fin = vu.paywall;
+      }
+      vu.annule = vu.bouton - vu.essai; vu.erreur = 0; vu.avis = Math.round(vu.essai * 0.8);
+      var vues = {};
+      ETAPES.concat(ETAPES_NOUVEL, A_COTE).forEach(function (e) {
+        if (vues[e[0]] || !(vu[e[0]] > 0)) return;
+        vues[e[0]] = true;
+        lignesP.push({ jour: j, etape: e[0], version: v, n: vu[e[0]] });
+      });
     });
     D.parcours = sourceParcours(lignesP);
     // Des appels à l'IA inventés : beaucoup d'essais au début, puis les utilisateurs prennent le dessus.
