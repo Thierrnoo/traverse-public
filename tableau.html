@@ -136,6 +136,17 @@
   .entonnoir b { text-align: right; font-variant-numeric: tabular-nums; }
   .entonnoir em { font-style: normal; text-align: right; color: var(--gris); font-size: .8rem; font-variant-numeric: tabular-nums; }
   .entonnoir-titre { font-size: .8rem; color: var(--gris); font-weight: 500; margin: 1.1rem 0 .2rem; }
+  /* Le parcours page par page (9 oct.) : le titre du chemin, les numeros, les branches en retrait, les blocs repliables. */
+  .parcours-titre { font-size: 1rem; font-weight: 600; color: var(--encre); margin: 1rem 0 .1rem; }
+  .parcours-titre span, .repli summary span { font-weight: 400; color: var(--gris); font-size: .85rem; }
+  .parcours-note { font-size: .82rem; color: var(--gris); margin: .2rem 0 .4rem; }
+  .entonnoir .num { font-style: normal; display: inline-block; min-width: 1.6rem; color: var(--gris); font-variant-numeric: tabular-nums; }
+  .entonnoir li.branche > span { color: var(--gris); font-size: .82rem; padding-left: 1.6rem; }
+  .entonnoir li.branche.n2 > span { padding-left: 3rem; }
+  .entonnoir li.branche { padding: .25rem 0; border-top-style: dashed; }
+  .entonnoir li.branche .barre { height: 5px; }
+  .repli { margin-top: 1.2rem; border-top: 1px solid var(--trait); padding-top: .7rem; }
+  .repli summary { cursor: pointer; font-weight: 600; color: var(--doux); font-size: .92rem; }
   /* La cascade de « Brut et net » : des montants en euros, plus larges que des nombres de personnes. */
   .cascade li { grid-template-columns: minmax(6.5rem, 15rem) minmax(1.5rem, 1fr) 5.2rem 2.6rem; gap: .6rem; }
   .cascade li.fort > span { color: var(--encre); font-weight: 600; }
@@ -291,30 +302,46 @@
     ['bouton', 'Touche le bouton de l’essai'], ['essai', 'Essai démarré']
   ];
   /**
-   * Le nouvel accueil (9 oct. 2026) : faire connaissance, l'offre, l'entrée dans l'app, puis la création du
-   * premier voyage — essai pris ou non, tout le monde passe par la page d'entrée. L'essai lui-même est
-   * « à côté », avec le détail de l'essai choisi.
+   * Le chemin du nouvel accueil (9 oct. 2026), page par page, avec le titre que la page affiche, en trois
+   * parties. Sous certaines pages, ce qui s'y passe (`branches`, en retrait) : le pourcentage d'une branche
+   * se lit par rapport à sa page — « 40 % de ceux qui voient l'offre touchent le bouton ».
    */
-  var ETAPES_NOUVEL = [
-    ['bienvenue', 'Ouvre l’app'], ['idee', 'Un voyage en vue ?'], ['pret-voyage', 'Préparons Traverse'],
-    ['quand', 'C’est pour quand ?'], ['qui', 'Qui vient ?'], ['genre', 'Quel genre de voyage ?'],
-    ['gene', 'Le plus pénible'], ['profil', 'Top, ça nous aide'], ['prepa', 'Où en est la préparation ?'],
-    ['habitudes', 'Où vit ton plan ?'], ['chaos', 'Fini le chaos'], ['exemple', 'Une journée prête (exemple)'],
-    ['y-aller', 'Un geste pour y aller'], ['partout', 'Traverse te suit partout'], ['pret', 'C’est prêt'],
-    ['preparation', 'On prépare ton Traverse'], ['forme', 'Tes voyages vont changer'],
-    ['offert', 'On t’offre 7 jours'], ['rappel', 'Rappel avant la fin de l’essai'], ['page-essai', 'L’offre (Conçois ton essai)'],
-    ['entree', 'Entrée dans l’app'], ['destination', 'Destination'], ['dates', 'Dates'], ['couverture', 'Photo du voyage'],
-    ['envies', 'Envies'], ['rythme', 'Rythme'], ['budget', 'Budget'], ['generation', 'Construction du Jour 1'],
-    ['apercu', 'Aperçu du voyage'], ['fin', 'Accueil terminé']
+  var PARCOURS_NOUVEL = [
+    { titre: 'Faire connaissance', pages: [
+      ['bienvenue', 'Bienvenue'], ['idee', 'Un voyage en vue ?'], ['pret-voyage', 'Préparons Traverse pour ce voyage'],
+      ['quand', 'C’est pour quand ?'], ['qui', 'Qui vient avec toi ?'], ['genre', 'Quel genre de voyage ?'],
+      ['gene', 'Le plus pénible, quand tu prépares un voyage ?'], ['profil', 'Top. Ça nous aide…'],
+      ['prepa', 'Où en est la préparation ?'], ['habitudes', 'Où vit ton plan pour l’instant ?'], ['chaos', 'Fini le chaos'],
+      ['exemple', 'Une journée prête (exemple à Paris)'], ['y-aller', 'Sur place, un geste pour y aller'],
+      ['partout', 'Traverse te suit partout'], ['pret', 'C’est prêt !'], ['preparation', 'On prépare ton Traverse (chargement)'],
+      ['forme', 'Tes voyages vont changer']
+    ] },
+    { titre: 'L’offre', pages: [
+      ['offert', 'On t’offre 7 jours gratuits'], ['rappel', 'On te prévient avant la fin de ton essai'],
+      ['page-essai', 'Conçois ton essai', [
+        ['bouton', 'touche le bouton « Échanger… »', 1], ['essai', 'prend un essai', 1],
+        ['essai-7', '7 jours gratuits', 2], ['essai-30', '30 jours à 2,99 €', 2], ['essai-14', '14 jours offerts (offre unique)', 2],
+        ['annule', 'referme la fenêtre d’Apple sans payer', 1],
+        ['cadeau', 'ferme l’offre et voit le cadeau', 1], ['offre-unique', 'ouvre le cadeau : l’offre unique de 14 jours', 1]
+      ]],
+      ['entree', 'Entrée dans l’app (« Commencer »)']
+    ] },
+    { titre: 'Création du premier voyage', pages: [
+      ['destination', 'Où pars-tu ?'], ['dates', 'Tu pars quand ?'], ['couverture', 'Ta photo de couverture'],
+      ['envies', 'Qu’est-ce que tu aimes en voyage ?'], ['rythme', 'À quel rythme tu aimes voyager ?'],
+      ['budget', 'Quel budget pour ce voyage ?'], ['generation', 'On construit ta première journée'],
+      ['apercu', 'Aperçu du voyage', [['debloquer', 'touche « Débloquer mes journées »', 1]]],
+      ['fin', 'Accueil terminé (arrive sur « Mes voyages »)']
+    ] }
   ];
+  /** Le chemin du nouvel accueil à plat, sans les branches. */
+  var ETAPES_NOUVEL = [].concat.apply([], PARCOURS_NOUVEL.map(function (p) { return p.pages; }));
   /** Les pages qui ne se voient que dans le nouvel accueil : une version qui les envoie le porte. */
   var MARQUES_NOUVEL = ['idee', 'pret-voyage', 'quand', 'page-essai', 'entree'];
+  /** Le reste, rangé dans « Autres chiffres ». */
   var A_COTE = [
-    ['offre', 'Offre vue, où que ce soit'], ['bouton', 'Touche le bouton de l’essai'], ['essai', 'Essai démarré'],
-    ['essai-7', '… l’essai gratuit de 7 jours'], ['essai-30', '… le mois à 2,99 €'], ['essai-14', '… l’offre unique de 14 jours'],
-    ['abonne', 'Abonnement pris sans essai'], ['annule', 'Fenêtre d’Apple refermée sans payer'], ['erreur', 'Achat en échec'],
-    ['rattrapage', 'Cadeau (offre de rattrapage) vu'], ['offre-unique', 'Offre unique de 14 jours vue'],
-    ['debloquer', '« Débloquer mes journées » touché'], ['fin', 'Accueil terminé, essai ou non'], ['avis', 'Fenêtre d’avis demandée']
+    ['offre', 'Offre vue, où que ce soit'], ['abonne', 'Abonnement pris sans essai'], ['erreur', 'Achat en échec'],
+    ['rattrapage', 'Offre de rattrapage vue'], ['avis', 'Fenêtre d’avis d’Apple demandée']
   ];
   var cle = '';
 
@@ -350,7 +377,7 @@
     { id: 'provenance', section: 'acquisition', titre: 'Provenance du lien', source: 'lien', type: 'provenance',
       pied: 'Visites de traverse-app.fr/app, selon l’app où le lien a été ouvert et le type d’appareil · sans cookie ni identifiant' },
     { id: 'parcours', section: 'parcours', titre: 'Où les gens s’arrêtent', source: 'parcours', type: 'parcours',
-      pied: 'L’app · combien de personnes arrivent à chaque écran, une fois par téléphone, sans identifiant · pourcentages par rapport à « Ouvre l’app » · heure de Paris · compté à partir de la version qui porte le compteur' },
+      pied: 'L’app · combien de personnes arrivent à chaque page, une fois par téléphone, sans identifiant · pourcentages par rapport à « Bienvenue » ; en retrait (↳), par rapport à la page juste au-dessus · heure de Paris · compté à partir de la version qui porte le compteur' },
     // Le revenu d'abord, en haut à gauche (1er oct.) : c'est la carte qu'on ouvre la page pour lire.
     { id: 'revenu', section: 'monetisation', titre: 'Revenu', source: 'rc', graphe: 'revenue', type: 'barres', couleur: 'var(--jaune)', euros: true,
       modes: [['brut', 'Brut'], ['net', 'Net'], ['simulateur', 'Simulateur']], modeDefaut: 'brut',
@@ -765,75 +792,86 @@
   }
 
   /**
-   * Le parcours : combien de personnes arrivent à chaque écran, du premier à l'essai, puis ce qui se
-   * passe à côté. La plus grosse perte d'un écran au suivant est signalée : c'est là qu'il faut regarder.
-   * Quand l'app a eu plusieurs versions sur la période, des pilules permettent d'en isoler une.
+   * Le parcours (refait le 9 oct. pour se lire d'un coup d'oeil) : en haut, tout le chemin du nouvel
+   * accueil, page par page et numerote, avec le titre que chaque page affiche, en trois parties — faire
+   * connaissance, l'offre, la creation du premier voyage. Sous certaines pages, en retrait, ce qui s'y
+   * passe (le bouton touche, l'essai choisi, le cadeau…). La plus grosse perte d'une page a la suivante
+   * est signalee : c'est la qu'il faut regarder. En dessous, repliables, l'ancien accueil et les autres
+   * chiffres.
+   *
+   * Le nouvel accueil se reconnait aux pages qu'il est seul a envoyer (MARQUES_NOUVEL) : les versions de
+   * l'app qui les envoient sont comptees dans le nouveau chemin, les autres dans l'ancien.
    */
   function rendreParcours(c, s, jours, corps) {
     var st = c.etat, versions = s.versions;
-    if (st.version && versions.indexOf(st.version) < 0) st.version = '';
-    // Combien de personnes à cette étape, pour les versions que `garder` retient.
+    // Combien de personnes a cette etape, pour les versions que `garder` retient.
     var compte = function (etape, garder) {
       return jours.reduce(function (t, j) {
         var parVersion = s.jour(j)[etape] || {};
         return t + Object.keys(parVersion).reduce(function (u, v) { return u + (garder(v) ? parVersion[v] : 0); }, 0);
       }, 0);
     };
-    // Les versions qui portent le nouvel accueil (9 oct.) : celles qui ont envoyé une de ses pages.
     var nouvelle = {};
     versions.forEach(function (v) {
       nouvelle[v] = jours.some(function (j) { var t = s.jour(j); return MARQUES_NOUVEL.some(function (e) { return t[e] && t[e][v]; }); });
     });
-    var toutes = function (v) { return !st.version || v === st.version; };
+    var nv = versions.filter(function (v) { return nouvelle[v]; }), an = versions.filter(function (v) { return !nouvelle[v]; });
+    var duNouvel = function (v) { return nouvelle[v]; }, delAncien = function (v) { return !nouvelle[v]; };
+    var toutes = function () { return true; };
     var depart = compte('bienvenue', toutes), essais = compte('essai', toutes);
     var h = '<div class="hero"><b style="color:var(--encre)">' + fmt(depart) + '</b><span class="sous">' + pluriel(depart, ['personne a ouvert l’app', 'personnes ont ouvert l’app']) + ' ' + duree(c, jours) +
       ' · <span style="color:var(--aqua)">' + fmt(essais) + ' ' + pluriel(essais, ['essai', 'essais']) + (depart ? ' (' + Math.round(100 * essais / depart) + ' %)' : '') + '</span></span></div>';
-    if (versions.length > 1) {
-      h += '<div class="pilules versions">' + [['', 'Toutes les versions']].concat(versions.map(function (v) { return [v, 'Version ' + v]; })).map(function (v) {
-        return '<button class="pil" data-version="' + esc(v[0]) + '" aria-pressed="' + (v[0] === (st.version || '')) + '">' + esc(v[1]) + '</button>';
-      }).join('') + '</div>';
-    }
-    if (!depart && !A_COTE.some(function (e) { return compte(e[0], toutes); })) {
-      corps.innerHTML = h + '<div class="vide"><div><strong>Personne encore ' + duree(c, jours) + '</strong>Le compteur arrive avec la version de l’app qui le porte.</div></div>';
-      return;
-    }
-    var ligne = function (nom, v, base, couleur, note) {
-      return '<li><span>' + esc(nom) + (note || '') + '</span><div class="barre"><span style="width:' + (base ? Math.min(100, 100 * v / base) : 0) + '%;background:' + couleur + '"></span></div>' +
+
+    var ligne = function (nom, v, base, couleur, classe, note) {
+      return '<li' + (classe ? ' class="' + classe + '"' : '') + '><span>' + nom + (note || '') + '</span><div class="barre"><span style="width:' + (base ? Math.min(100, 100 * v / base) : 0) + '%;background:' + couleur + '"></span></div>' +
         '<b>' + fmt(v) + '</b><em>' + (base ? Math.round(100 * v / base) + ' %' : '') + '</em></li>';
     };
-    // Un entonnoir : chaque écran par rapport au premier, et la plus grosse perte d'un écran au suivant.
-    var entonnoir = function (liste, garder) {
-      var n = liste.map(function (e) { return compte(e[0], garder); });
-      var pire = -1, perte = 0;
-      for (var k = 1; k < n.length; k++) if (n[k - 1] - n[k] > perte) { perte = n[k - 1] - n[k]; pire = k; }
-      return '<ul class="entonnoir">' + liste.map(function (e, i) {
-        var note = i === pire ? '<small>▼ ' + fmt(perte) + ' ' + pluriel(perte, ['personne perdue', 'personnes perdues']) + ' ici, la plus grosse perte</small>' : '';
-        return ligne(e[1], n[i], n[0], e[0] === 'essai' ? 'var(--aqua)' : 'var(--bleu)', note);
-      }).join('') + '</ul>';
+    var perteNote = function (perte) {
+      return '<small>▼ ' + fmt(perte) + ' ' + pluriel(perte, ['personne perdue', 'personnes perdues']) + ' ici, la plus grosse perte</small>';
     };
-    // Une version choisie : son accueil. Toutes : le nouvel accueil et l'ancien, l'un sous l'autre, pour
-    // les comparer — chacun avec ses propres pourcentages.
-    var groupes = [];
-    if (st.version) {
-      groupes.push({ liste: nouvelle[st.version] ? ETAPES_NOUVEL : ETAPES, garder: toutes });
-    } else {
-      var nv = versions.filter(function (v) { return nouvelle[v]; }), an = versions.filter(function (v) { return !nouvelle[v]; });
-      var nom = function (vs) { return vs.length ? ' · ' + pluriel(vs.length, ['version', 'versions']) + ' ' + vs.join(', ') : ''; };
-      if (nv.length) groupes.push({ titre: 'Nouvel accueil' + nom(nv), liste: ETAPES_NOUVEL, garder: function (v) { return nouvelle[v]; } });
-      if (an.length || !nv.length) groupes.push({ titre: nv.length ? 'Ancien accueil' + nom(an) : '', liste: ETAPES, garder: function (v) { return !nouvelle[v]; } });
+
+    // Le nouvel accueil : ses trois parties, ses pages numerotees, les branches en retrait.
+    var plates = ETAPES_NOUVEL.map(function (e) { return compte(e[0], duNouvel); });
+    var pire = -1, perte = 0;
+    for (var k = 1; k < plates.length; k++) if (plates[k - 1] - plates[k] > perte) { perte = plates[k - 1] - plates[k]; pire = k; }
+    var base = plates[0], rang = 0;
+    h += '<p class="parcours-titre">Nouvel accueil' + (nv.length ? ' <span>· ' + pluriel(nv.length, ['version', 'versions']) + ' ' + esc(nv.join(', ')) + '</span>' : '') + '</p>';
+    if (!nv.length) h += '<p class="parcours-note">Les chiffres arrivent avec la version de l’app qui porte le nouvel accueil, une fois sur l’App Store.</p>';
+    PARCOURS_NOUVEL.forEach(function (partie) {
+      h += '<p class="entonnoir-titre">' + esc(partie.titre) + '</p><ul class="entonnoir">';
+      partie.pages.forEach(function (p) {
+        var i = rang++, n = plates[i];
+        h += ligne('<i class="num">' + (i + 1) + '</i>' + esc(p[1]), n, base, 'var(--bleu)', '', i === pire ? perteNote(perte) : '');
+        (p[2] || []).forEach(function (b) {
+          var v = compte(b[0], duNouvel);
+          var couleur = b[0].indexOf('essai') === 0 ? 'var(--aqua)' : 'var(--autres)';
+          h += ligne('↳ ' + esc(b[1]), v, n, couleur, 'branche n' + b[2]);
+        });
+      });
+      h += '</ul>';
+    });
+
+    // L'ancien accueil, replie d'office : on le deplie pour comparer.
+    if (an.length) {
+      var anciens = ETAPES.map(function (e) { return compte(e[0], delAncien); });
+      var pireA = -1, perteA = 0;
+      for (var a = 1; a < anciens.length; a++) if (anciens[a - 1] - anciens[a] > perteA) { perteA = anciens[a - 1] - anciens[a]; pireA = a; }
+      h += '<details class="repli" data-repli="ancien"' + (st.ancien ? ' open' : '') + '><summary>Ancien accueil <span>· ' + pluriel(an.length, ['version', 'versions']) + ' ' + esc(an.join(', ')) +
+        ' · ' + fmt(anciens[0]) + ' ' + pluriel(anciens[0], ['personne', 'personnes']) + ' · ' + fmt(compte('essai', delAncien)) + ' ' + pluriel(compte('essai', delAncien), ['essai', 'essais']) + '</span></summary><ul class="entonnoir">' +
+        ETAPES.map(function (e, i) {
+          return ligne('<i class="num">' + (i + 1) + '</i>' + esc(e[1]), anciens[i], anciens[0], e[0] === 'essai' ? 'var(--aqua)' : 'var(--bleu)', '', i === pireA ? perteNote(perteA) : '');
+        }).join('') + '</ul></details>';
     }
-    groupes.forEach(function (g) {
-      if (g.titre && groupes.length > 1) h += '<p class="entonnoir-titre">' + esc(g.titre) + '</p>';
-      h += entonnoir(g.liste, g.garder);
-    });
-    // À côté : ce qui n'est pas déjà une marche de tous les entonnoirs affichés.
-    var aCote = A_COTE.filter(function (e) {
-      return !groupes.every(function (g) { return g.liste.some(function (x) { return x[0] === e[0]; }); });
-    });
-    h += '<p class="entonnoir-titre">À côté</p><ul class="entonnoir">' + aCote.map(function (e) {
-      return ligne(e[1], compte(e[0], toutes), depart, 'var(--autres)');
-    }).join('') + '</ul>';
+
+    // Les autres chiffres, replies aussi.
+    h += '<details class="repli" data-repli="autres"' + (st.autres ? ' open' : '') + '><summary>Autres chiffres</summary><ul class="entonnoir">' +
+      A_COTE.map(function (e) { return ligne(esc(e[1]), compte(e[0], toutes), depart, 'var(--autres)'); }).join('') + '</ul></details>';
+
     corps.innerHTML = h;
+    // Ce qu'on a deplie le reste quand la carte se redessine (autre periode).
+    corps.querySelectorAll('details[data-repli]').forEach(function (d) {
+      d.addEventListener('toggle', function () { st[d.dataset.repli] = d.open; });
+    });
   }
 
   function rendreDonut(c, s, jours, corps) {
@@ -1277,14 +1315,15 @@
         vu.bouton = Math.round(vu['page-essai'] * 0.4); vu.essai = Math.round(vu.bouton * 0.7);
         vu['essai-30'] = Math.round(vu.essai * 0.3); vu['essai-14'] = Math.round(vu.essai * 0.2);
         vu['essai-7'] = vu.essai - vu['essai-30'] - vu['essai-14'];
-        vu.rattrapage = Math.round((vu['page-essai'] - vu.bouton) * 0.9); vu['offre-unique'] = Math.round(vu.rattrapage * 0.5);
+        vu.cadeau = Math.round((vu['page-essai'] - vu.bouton) * 0.9); vu['offre-unique'] = Math.round(vu.cadeau * 0.5);
         vu.debloquer = Math.round(vu.apercu * 0.3); vu.offre = vu['page-essai'] + vu.debloquer;
       } else {
         vu.offre = vu.paywall + 1; vu.rattrapage = Math.round((vu.paywall - vu.essai) * 0.9); vu.fin = vu.paywall;
       }
       vu.annule = vu.bouton - vu.essai; vu.erreur = 0; vu.avis = Math.round(vu.essai * 0.8);
       var vues = {};
-      ETAPES.concat(ETAPES_NOUVEL, A_COTE).forEach(function (e) {
+      var branches = [].concat.apply([], ETAPES_NOUVEL.map(function (p) { return p[2] || []; }));
+      ETAPES.concat(ETAPES_NOUVEL, branches, A_COTE).forEach(function (e) {
         if (vues[e[0]] || !(vu[e[0]] > 0)) return;
         vues[e[0]] = true;
         lignesP.push({ jour: j, etape: e[0], version: v, n: vu[e[0]] });
