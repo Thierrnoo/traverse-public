@@ -130,7 +130,7 @@
   // Les textes de la page, dans la langue du navigateur (celle de l'app sinon, le français au pire).
   var TEXTES = {
     fr: {
-      chargement: 'Ouverture du voyage…', surtitre: 'ON TE PARTAGE UN VOYAGE',
+      chargement: 'Ouverture du voyage…', surtitre: 'ON TE PARTAGE UN VOYAGE', invite: function (p) { return p + ' T’INVITE DANS SON VOYAGE'; },
       jours: function (n) { return n + (n > 1 ? ' jours' : ' jour'); },
       activites: function (n) { return n + (n > 1 ? ' activités' : ' activité'); },
       ouvrir: 'Ouvrir dans Traverse', telecharger: 'Télécharger Traverse',
@@ -144,7 +144,7 @@
       decouvrir: 'Découvrir Traverse'
     },
     en: {
-      chargement: 'Opening the trip…', surtitre: 'A TRIP SHARED WITH YOU',
+      chargement: 'Opening the trip…', surtitre: 'A TRIP SHARED WITH YOU', invite: function (p) { return p + ' INVITES YOU TO THEIR TRIP'; },
       jours: function (n) { return n + (n > 1 ? ' days' : ' day'); },
       activites: function (n) { return n + (n > 1 ? ' activities' : ' activity'); },
       ouvrir: 'Open in Traverse', telecharger: 'Download Traverse',
@@ -158,7 +158,7 @@
       decouvrir: 'Discover Traverse'
     },
     es: {
-      chargement: 'Abriendo el viaje…', surtitre: 'TE HAN COMPARTIDO UN VIAJE',
+      chargement: 'Abriendo el viaje…', surtitre: 'TE HAN COMPARTIDO UN VIAJE', invite: function (p) { return p + ' TE INVITA A SU VIAJE'; },
       jours: function (n) { return n + (n > 1 ? ' días' : ' día'); },
       activites: function (n) { return n + (n > 1 ? ' actividades' : ' actividad'); },
       ouvrir: 'Abrir en Traverse', telecharger: 'Descargar Traverse',
@@ -172,7 +172,7 @@
       decouvrir: 'Descubrir Traverse'
     },
     de: {
-      chargement: 'Reise wird geöffnet…', surtitre: 'EINE REISE FÜR DICH',
+      chargement: 'Reise wird geöffnet…', surtitre: 'EINE REISE FÜR DICH', invite: function (p) { return p + ' LÄDT DICH ZU SEINER REISE EIN'; },
       jours: function (n) { return n + (n > 1 ? ' Tage' : ' Tag'); },
       activites: function (n) { return n + (n > 1 ? ' Aktivitäten' : ' Aktivität'); },
       ouvrir: 'In Traverse öffnen', telecharger: 'Traverse laden',
@@ -186,7 +186,7 @@
       decouvrir: 'Traverse entdecken'
     },
     it: {
-      chargement: 'Apertura del viaggio…', surtitre: 'UN VIAGGIO CONDIVISO CON TE',
+      chargement: 'Apertura del viaggio…', surtitre: 'UN VIAGGIO CONDIVISO CON TE', invite: function (p) { return p + ' TI INVITA NEL SUO VIAGGIO'; },
       jours: function (n) { return n + (n > 1 ? ' giorni' : ' giorno'); },
       activites: function (n) { return n + ' attività'; },
       ouvrir: 'Apri in Traverse', telecharger: 'Scarica Traverse',
@@ -248,7 +248,11 @@
     });
 
     document.title = (voyage.titre || ville) + ' · Traverse';
-    $('surtitre').textContent = t.surtitre;
+    // Qui invite, quand il s'est présenté dans l'app (13 oct. 2026) : « 😊 THIERNO T'INVITE… ».
+    var auteur = voyage.auteur && typeof voyage.auteur === 'object' ? voyage.auteur : null;
+    var prenom = auteur && typeof auteur.prenom === 'string' ? auteur.prenom.trim().slice(0, 24) : '';
+    var avatar = auteur && typeof auteur.avatar === 'string' ? auteur.avatar.trim().slice(0, 8) : '';
+    $('surtitre').textContent = prenom ? (avatar ? avatar + ' ' : '') + t.invite(prenom.toUpperCase()) : t.surtitre;
     $('titre').textContent = voyage.titre || ville;
     $('resume').textContent = [ville, t.jours(jours), t.activites(total)].join(' · ');
 
