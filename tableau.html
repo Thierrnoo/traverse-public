@@ -231,10 +231,12 @@
   var HISTOIRE = 90;
   /**
    * La remise a zero de la carte « Où les gens s'arrêtent » (14 oct. 2026, sa demande, jour de sortie de la 1.1.0 et
-   * de son nouvel accueil) : la carte ne compte que les jours a partir de celui-ci. Rien n'est efface dans Supabase :
-   * vider cette valeur ('') rend tout l'historique. Ecarte aussi ses essais TestFlight de la 1.1.0, la veille.
+   * de son nouvel accueil), a la minute pres : la carte ne compte que les passages a partir de cet instant — d'abord
+   * le jour meme a minuit, puis 17 h 41, juste apres son propre parcours sur la 1.1.0 (17 h 38-17 h 40). Supabase fait
+   * le tri (stats_parcours_app, parametre `depuis`, migration 20261014180000) ; rien n'est efface : vider cette valeur
+   * ('') rend tout l'historique. Une prochaine remise a zero : changer seulement cette heure.
    */
-  var PARCOURS_DEPUIS = '2026-10-14';
+  var PARCOURS_DEPUIS = '2026-10-14T17:41:00+02:00';
   /**
    * Ce qui part d'un paiement avant d'arriver chez toi (carte « Brut et net », 1er oct. 2026).
    * tva : la TVA française, comprise dans le prix payé ; Apple la reverse à l'État à ta place.
@@ -828,8 +830,9 @@
     var h = '<div class="hero"><b style="color:var(--encre)">' + fmt(depart) + '</b><span class="sous">' + pluriel(depart, ['personne a ouvert l’app', 'personnes ont ouvert l’app']) + ' ' + duree(c, jours) +
       ' · <span style="color:var(--aqua)">' + fmt(essais) + ' ' + pluriel(essais, ['essai', 'essais']) + (depart ? ' (' + Math.round(100 * essais / depart) + ' %)' : '') + '</span></span></div>';
     if (PARCOURS_DEPUIS && !DEMO) {
-      var dz = PARCOURS_DEPUIS.split('-');
-      h += '<p class="parcours-note">Remis à zéro le ' + Number(dz[2]) + ' ' + ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][Number(dz[1]) - 1] + ' ' + dz[0] + ', à la sortie de la version 1.1.0 : rien n’est compté avant.</p>';
+      var dz = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(PARCOURS_DEPUIS);
+      h += '<p class="parcours-note">Remis à zéro le ' + Number(dz[3]) + ' ' + ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][Number(dz[2]) - 1] + ' ' + dz[1] +
+        (dz[4] ? ' à ' + Number(dz[4]) + ' h ' + dz[5] : '') + (s.precis === false ? ' (à la journée près, en attendant la mise à jour de Supabase)' : '') + ' : rien n’est compté avant.</p>';
     }
 
     var ligne = function (nom, v, base, couleur, classe, note) {
@@ -1080,13 +1083,18 @@
 
   async function chargerParcours() {
     try {
-      var r = await appeler('/rest/v1/rpc/stats_parcours_app', { cle: cle });
+      // Remis a zero le PARCOURS_DEPUIS, a la minute pres : Supabase ne compte que les passages d'apres. Tant que sa
+      // fonction ne connait pas encore `depuis` (migration pas encore passee), on retombe sur le tri a la journee.
+      var precis = true;
+      var r = await appeler('/rest/v1/rpc/stats_parcours_app', PARCOURS_DEPUIS ? { cle: cle, depuis: PARCOURS_DEPUIS } : { cle: cle });
+      if (PARCOURS_DEPUIS && (r.status === 404 || r.status === 400)) { precis = false; r = await appeler('/rest/v1/rpc/stats_parcours_app', { cle: cle }); }
       if (r.status === 404) { D.parcours = { etat: 'absente', message: 'Le compteur n’est pas encore installé sur Supabase.' }; return; }
       if (!r.ok) throw new Error();
       var p = await r.json();
-      // Remis a zero le PARCOURS_DEPUIS : les jours d'avant ne sont plus comptes (ils restent dans Supabase).
-      var lignes = (p && p.lignes || []).filter(function (l) { return !PARCOURS_DEPUIS || l.jour >= PARCOURS_DEPUIS; });
+      var jour0 = PARCOURS_DEPUIS ? PARCOURS_DEPUIS.slice(0, 10) : '';
+      var lignes = (p && p.lignes || []).filter(function (l) { return !jour0 || l.jour >= jour0; });
       D.parcours = p ? sourceParcours(lignes) : { etat: 'erreur', message: 'La clé n’ouvre pas le parcours.' };
+      if (p) D.parcours.precis = precis;
     } catch (e) {
       D.parcours = { etat: 'erreur', message: 'Le parcours ne répond pas pour l’instant.' };
     }
