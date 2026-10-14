@@ -230,6 +230,12 @@
   var MEMO_SOURCES = 'traverse-apple-sources-v1';  // les rapports d'analyse d'Apple déjà lus (idem)
   var HISTOIRE = 90;
   /**
+   * La remise a zero de la carte « Où les gens s'arrêtent » (14 oct. 2026, sa demande, jour de sortie de la 1.1.0 et
+   * de son nouvel accueil) : la carte ne compte que les jours a partir de celui-ci. Rien n'est efface dans Supabase :
+   * vider cette valeur ('') rend tout l'historique. Ecarte aussi ses essais TestFlight de la 1.1.0, la veille.
+   */
+  var PARCOURS_DEPUIS = '2026-10-14';
+  /**
    * Ce qui part d'un paiement avant d'arriver chez toi (carte « Brut et net », 1er oct. 2026).
    * tva : la TVA française, comprise dans le prix payé ; Apple la reverse à l'État à ta place.
    * apple : sa part du prix hors TVA — 15 % avec le programme des petits développeurs (Small Business Program).
@@ -821,6 +827,10 @@
     var depart = compte('bienvenue', toutes), essais = compte('essai', toutes);
     var h = '<div class="hero"><b style="color:var(--encre)">' + fmt(depart) + '</b><span class="sous">' + pluriel(depart, ['personne a ouvert l’app', 'personnes ont ouvert l’app']) + ' ' + duree(c, jours) +
       ' · <span style="color:var(--aqua)">' + fmt(essais) + ' ' + pluriel(essais, ['essai', 'essais']) + (depart ? ' (' + Math.round(100 * essais / depart) + ' %)' : '') + '</span></span></div>';
+    if (PARCOURS_DEPUIS && !DEMO) {
+      var dz = PARCOURS_DEPUIS.split('-');
+      h += '<p class="parcours-note">Remis à zéro le ' + Number(dz[2]) + ' ' + ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'][Number(dz[1]) - 1] + ' ' + dz[0] + ', à la sortie de la version 1.1.0 : rien n’est compté avant.</p>';
+    }
 
     var ligne = function (nom, v, base, couleur, classe, note) {
       return '<li' + (classe ? ' class="' + classe + '"' : '') + '><span>' + nom + (note || '') + '</span><div class="barre"><span style="width:' + (base ? Math.min(100, 100 * v / base) : 0) + '%;background:' + couleur + '"></span></div>' +
@@ -1074,7 +1084,9 @@
       if (r.status === 404) { D.parcours = { etat: 'absente', message: 'Le compteur n’est pas encore installé sur Supabase.' }; return; }
       if (!r.ok) throw new Error();
       var p = await r.json();
-      D.parcours = p ? sourceParcours(p.lignes || []) : { etat: 'erreur', message: 'La clé n’ouvre pas le parcours.' };
+      // Remis a zero le PARCOURS_DEPUIS : les jours d'avant ne sont plus comptes (ils restent dans Supabase).
+      var lignes = (p && p.lignes || []).filter(function (l) { return !PARCOURS_DEPUIS || l.jour >= PARCOURS_DEPUIS; });
+      D.parcours = p ? sourceParcours(lignes) : { etat: 'erreur', message: 'La clé n’ouvre pas le parcours.' };
     } catch (e) {
       D.parcours = { etat: 'erreur', message: 'Le parcours ne répond pas pour l’instant.' };
     }
