@@ -310,11 +310,50 @@
     ['bouton', 'Touche le bouton de l’essai'], ['essai', 'Essai démarré']
   ];
   /**
-   * Le chemin du nouvel accueil (9 oct. 2026), page par page, avec le titre que la page affiche, en trois
-   * parties. Sous certaines pages, ce qui s'y passe (`branches`, en retrait) : le pourcentage d'une branche
-   * se lit par rapport à sa page — « 40 % de ceux qui voient l'offre touchent le bouton ».
+   * Le chemin de l'accueil depuis la version 1.1.1 (23 oct. 2026, façon Rhyme) : la ville et les dates AVANT
+   * l'offre, l'offre parle de ce voyage (« Ton voyage à … t'attend »), et le cadeau montre directement les
+   * 14 jours gratuits (plus d'offre unique ni de page d'entrée). Page par page, avec le titre que la page
+   * affiche, en quatre parties. Sous certaines pages, ce qui s'y passe (`branches`, en retrait) : le
+   * pourcentage d'une branche se lit par rapport à sa page — « 40 % de ceux qui voient l'offre touchent le
+   * bouton ».
    */
   var PARCOURS_NOUVEL = [
+    { titre: 'Faire connaissance', pages: [
+      ['bienvenue', 'Bienvenue'], ['idee', 'Un voyage en vue ?'], ['pret-voyage', 'Préparons Traverse pour ce voyage'],
+      ['quand', 'C’est pour quand ?'], ['qui', 'Qui vient avec toi ?'], ['genre', 'Quel genre de voyage ?'],
+      ['gene', 'Le plus pénible, quand tu prépares un voyage ?'], ['profil', 'Top. Ça nous aide…'],
+      ['prepa', 'Où en est la préparation ?'], ['habitudes', 'Où vit ton plan pour l’instant ?'], ['chaos', 'Fini le chaos'],
+      ['exemple', 'Une journée prête (exemple à Paris)'], ['debut', 'À quelle heure tu commences tes journées ?'],
+      ['y-aller', 'Sur place, un geste pour y aller'], ['pret', 'C’est prêt !'], ['preparation', 'On prépare ton Traverse (chargement)'],
+      ['forme', 'Tes voyages vont changer']
+    ] },
+    { titre: 'Ton voyage', pages: [
+      ['destination', 'Où pars-tu ?'], ['dates', 'Tu pars quand ?']
+    ] },
+    { titre: 'L’offre', pages: [
+      ['offert', 'Ton voyage à … t’attend (7 jours gratuits)'], ['rappel', 'On te prévient avant la fin de ton essai'],
+      ['page-essai', 'Conçois ton essai', [
+        ['bouton', 'touche le bouton de l’essai', 1], ['essai', 'prend un essai', 1],
+        ['essai-7', '7 jours gratuits', 2], ['essai-30', '30 jours à 2,99 €', 2], ['essai-14', '14 jours gratuits (le cadeau)', 2],
+        ['annule', 'referme la fenêtre d’Apple sans payer', 1],
+        ['cadeau', 'ferme l’offre et voit le cadeau des 14 jours', 1]
+      ]]
+    ] },
+    { titre: 'Création du premier voyage', pages: [
+      ['couverture', 'Ta photo de couverture'],
+      ['envies', 'Qu’est-ce que tu aimes en voyage ?'], ['rythme', 'À quel rythme tu aimes voyager ?'],
+      ['budget', 'Quel budget pour ce voyage ?'], ['generation', 'On construit ta première journée'],
+      ['apercu', 'Aperçu du voyage', [['debloquer', 'touche « Débloquer mes journées »', 1]]],
+      ['fin', 'Accueil terminé (arrive sur « Mes voyages »)']
+    ] }
+  ];
+  /** La première version qui suit ce chemin ; les versions d'avant qui portent le nouvel accueil suivent PARCOURS_110. */
+  var VERSION_VILLE_DABORD = '1.1.1';
+  /**
+   * Le chemin de la version 1.1.0 (9-23 oct. 2026) : l'offre avant la ville. Gardé, replié, pour comparer les
+   * deux accueils.
+   */
+  var PARCOURS_110 = [
     { titre: 'Faire connaissance', pages: [
       ['bienvenue', 'Bienvenue'], ['idee', 'Un voyage en vue ?'], ['pret-voyage', 'Préparons Traverse pour ce voyage'],
       ['quand', 'C’est pour quand ?'], ['qui', 'Qui vient avec toi ?'], ['genre', 'Quel genre de voyage ?'],
@@ -344,6 +383,13 @@
   ];
   /** Le chemin du nouvel accueil à plat, sans les branches. */
   var ETAPES_NOUVEL = [].concat.apply([], PARCOURS_NOUVEL.map(function (p) { return p.pages; }));
+  var ETAPES_110 = [].concat.apply([], PARCOURS_110.map(function (p) { return p.pages; }));
+  /** Vrai si la version a (« 1.1.2 ») vaut au moins b (« 1.1.1 »). */
+  function auMoins(a, b) {
+    var x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+    for (var i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); }
+    return true;
+  }
   /** Les pages qui ne se voient que dans le nouvel accueil : une version qui les envoie le porte. */
   var MARQUES_NOUVEL = ['idee', 'pret-voyage', 'quand', 'page-essai', 'entree'];
   /** Le reste, rangé dans « Autres chiffres ». */
@@ -823,8 +869,11 @@
     versions.forEach(function (v) {
       nouvelle[v] = jours.some(function (j) { var t = s.jour(j); return MARQUES_NOUVEL.some(function (e) { return t[e] && t[e][v]; }); });
     });
-    var nv = versions.filter(function (v) { return nouvelle[v]; }), an = versions.filter(function (v) { return !nouvelle[v]; });
-    var duNouvel = function (v) { return nouvelle[v]; }, delAncien = function (v) { return !nouvelle[v]; };
+    // Le nouvel accueil a change d'ordre avec la 1.1.1 (la ville avant l'offre) : la 1.1.0 a son propre chemin, replie.
+    var duNouvel = function (v) { return nouvelle[v] && auMoins(v, VERSION_VILLE_DABORD); };
+    var du110 = function (v) { return nouvelle[v] && !auMoins(v, VERSION_VILLE_DABORD); };
+    var delAncien = function (v) { return !nouvelle[v]; };
+    var nv = versions.filter(duNouvel), v110 = versions.filter(du110), an = versions.filter(delAncien);
     var toutes = function () { return true; };
     var depart = compte('bienvenue', toutes), essais = compte('essai', toutes);
     var h = '<div class="hero"><b style="color:var(--encre)">' + fmt(depart) + '</b><span class="sous">' + pluriel(depart, ['personne a ouvert l’app', 'personnes ont ouvert l’app']) + ' ' + duree(c, jours) +
@@ -849,7 +898,7 @@
     for (var k = 1; k < plates.length; k++) if (plates[k - 1] - plates[k] > perte) { perte = plates[k - 1] - plates[k]; pire = k; }
     var base = plates[0], rang = 0;
     h += '<p class="parcours-titre">Nouvel accueil' + (nv.length ? ' <span>· ' + pluriel(nv.length, ['version', 'versions']) + ' ' + esc(nv.join(', ')) + '</span>' : '') + '</p>';
-    if (!nv.length) h += '<p class="parcours-note">Les chiffres arrivent avec la version de l’app qui porte le nouvel accueil, une fois sur l’App Store.</p>';
+    if (!nv.length) h += '<p class="parcours-note">Les chiffres arrivent avec la version ' + VERSION_VILLE_DABORD + ' (la ville avant l’offre), une fois sur l’App Store.</p>';
     PARCOURS_NOUVEL.forEach(function (partie) {
       h += '<p class="entonnoir-titre">' + esc(partie.titre) + '</p><ul class="entonnoir">';
       partie.pages.forEach(function (p) {
@@ -863,6 +912,19 @@
       });
       h += '</ul>';
     });
+
+    // L'accueil de la 1.1.0 (l'offre avant la ville), replie d'office : on le deplie pour comparer.
+    if (v110.length) {
+      var p110 = ETAPES_110.map(function (e) { return compte(e[0], du110); });
+      var pireB = -1, perteB = 0;
+      for (var b = 1; b < p110.length; b++) if (p110[b - 1] - p110[b] > perteB) { perteB = p110[b - 1] - p110[b]; pireB = b; }
+      var essais110 = compte('essai', du110);
+      h += '<details class="repli" data-repli="v110"' + (st.v110 ? ' open' : '') + '><summary>Accueil 1.1.0 (l’offre avant la ville) <span>· ' + pluriel(v110.length, ['version', 'versions']) + ' ' + esc(v110.join(', ')) +
+        ' · ' + fmt(p110[0]) + ' ' + pluriel(p110[0], ['personne', 'personnes']) + ' · ' + fmt(essais110) + ' ' + pluriel(essais110, ['essai', 'essais']) + '</span></summary><ul class="entonnoir">' +
+        ETAPES_110.map(function (e, i) {
+          return ligne('<i class="num">' + (i + 1) + '</i>' + esc(e[1]), p110[i], p110[0], 'var(--bleu)', '', i === pireB ? perteNote(perteB) : '');
+        }).join('') + '</ul></details>';
+    }
 
     // L'ancien accueil, replie d'office : on le deplie pour comparer.
     if (an.length) {
@@ -1325,7 +1387,7 @@
     // Un parcours inventé : chaque écran perd un peu de monde ; l'ancien accueil (1.0.3), puis le nouveau (1.1.0).
     var lignesP = [];
     suite(jourDans('Europe/Paris', 40), jourDans('Europe/Paris')).forEach(function (j, i) {
-      var nouveau = i >= 25, v = nouveau ? '1.1.0' : '1.0.3', n = Math.round(12 + hasard() * 20), vu = {};
+      var nouveau = i >= 25, v = nouveau ? '1.1.1' : '1.0.3', n = Math.round(12 + hasard() * 20), vu = {};
       (nouveau ? ETAPES_NOUVEL : ETAPES).forEach(function (e, k) {
         var garde = { paywall: 0.8, bouton: 0.3, essai: 0.7, 'page-essai': 0.95, entree: 0.97 }[e[0]] || (0.9 + hasard() * 0.09);
         if (k) n = Math.round(n * garde);
@@ -1335,7 +1397,7 @@
         vu.bouton = Math.round(vu['page-essai'] * 0.4); vu.essai = Math.round(vu.bouton * 0.7);
         vu['essai-30'] = Math.round(vu.essai * 0.3); vu['essai-14'] = Math.round(vu.essai * 0.2);
         vu['essai-7'] = vu.essai - vu['essai-30'] - vu['essai-14'];
-        vu.cadeau = Math.round((vu['page-essai'] - vu.bouton) * 0.9); vu['offre-unique'] = Math.round(vu.cadeau * 0.5);
+        vu.cadeau = Math.round((vu['page-essai'] - vu.bouton) * 0.9);
         vu.debloquer = Math.round(vu.apercu * 0.3); vu.offre = vu['page-essai'] + vu.debloquer;
       } else {
         vu.offre = vu.paywall + 1; vu.rattrapage = Math.round((vu.paywall - vu.essai) * 0.9); vu.fin = vu.paywall;
