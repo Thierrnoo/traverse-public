@@ -235,8 +235,10 @@
    * le jour meme a minuit, puis 17 h 41, juste apres son propre parcours sur la 1.1.0 (17 h 38-17 h 40). Supabase fait
    * le tri (stats_parcours_app, parametre `depuis`, migration 20261014180000) ; rien n'est efface : vider cette valeur
    * ('') rend tout l'historique. Une prochaine remise a zero : changer seulement cette heure.
+   * 24 oct. 2026 (sa demande) : remise a zero a 10 h 31, juste avant le parcours 1.1.1 commence a 10 h 31 min 59 et
+   * alle jusqu'a l'essai ; les essais 1.1.1 de la nuit (19 h 57-1 h 35) et la 1.1.0 d'avant ne comptent plus.
    */
-  var PARCOURS_DEPUIS = '2026-10-14T17:41:00+02:00';
+  var PARCOURS_DEPUIS = '2026-10-24T10:31:00+02:00';
   /**
    * Ce qui part d'un paiement avant d'arriver chez toi (carte « Brut et net », 1er oct. 2026).
    * tva : la TVA française, comprise dans le prix payé ; Apple la reverse à l'État à ta place.
