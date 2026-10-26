@@ -447,7 +447,7 @@
     { id: 'nouveaux-essais', section: 'monetisation', titre: 'Nouveaux essais / jour', source: 'rc', graphe: 'trials_new', type: 'barres', couleur: 'var(--violet)',
       modes: true, unite: ['essai', 'essais'], pied: 'RevenueCat · essais démarrés · jours UTC' },
     { id: 'resiliations', section: 'monetisation', titre: 'Résiliations d’essai', source: 'rc', graphe: 'trial_conversion', type: 'resiliation', couleur: 'var(--rouge)',
-      pied: 'RevenueCat · essais qui ont coupé le renouvellement ÷ essais démarrés, rangés au jour d’arrivée de la personne · un jour récent bouge encore : on peut résilier jusqu’au dernier jour de l’essai · jours UTC' },
+      pied: 'RevenueCat · essais qui ont coupé le renouvellement ÷ essais démarrés, rangés au jour d’arrivée de la personne · un jour récent bouge encore : on peut résilier jusqu’au dernier jour de l’essai · couleur : vert sous 50 % (très bon), jaune de 50 à 70 % (moyenne autour de 65 %), rouge au-dessus · jours UTC' },
     { id: 'abonnes', section: 'monetisation', titre: 'Abonnés actifs', source: 'rc', graphe: 'actives', type: 'aire', couleur: 'var(--aqua)',
       unite: ['abonné', 'abonnés'], pied: 'RevenueCat · abonnements payants en cours, jour par jour' },
     { id: 'remboursements', section: 'monetisation', titre: 'Taux de remboursement', source: 'rc', graphe: 'refund_rate', type: 'remboursement', couleur: 'var(--rouge)',
@@ -654,6 +654,9 @@
       var npaie = je.reduce(function (t, x) { return t + x.paie; }, 0);
       var pct = function (r, t) { return Math.round(100 * r / t) + ' %'; };
       hero.textContent = ne ? pct(nres, ne) : '– %';
+      // La couleur dit le niveau (repères RevenueCat 2026 pour un essai de 7 jours : ~65 % de résiliations en moyenne).
+      var tx = ne ? 100 * nres / ne : 0;
+      hero.style.color = !ne ? 'var(--encre)' : tx < 50 ? 'var(--aqua)' : tx <= 70 ? 'var(--jaune)' : 'var(--rouge)';
       sous.innerHTML = fmt(nres) + ' ' + pluriel(nres, ['résiliation', 'résiliations']) + ' / ' + fmt(ne) + ' ' + pluriel(ne, ['essai', 'essais']) + ' ' + duree(c, jours) +
         ' · <span class="hausse">' + fmt(npaie) + ' ' + pluriel(npaie, ['payant ou en route', 'payants ou en route']) + '</span>';
       graphe(zone, { type: 'barres', empile: true, jours: jours, series: [
