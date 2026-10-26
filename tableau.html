@@ -446,6 +446,8 @@
       unite: ['essai en cours', 'essais en cours'], pied: 'RevenueCat · essais gratuits de 7 jours en cours' },
     { id: 'nouveaux-essais', section: 'monetisation', titre: 'Nouveaux essais / jour', source: 'rc', graphe: 'trials_new', type: 'barres', couleur: 'var(--violet)',
       modes: true, unite: ['essai', 'essais'], pied: 'RevenueCat · essais démarrés · jours UTC' },
+    { id: 'resiliations', section: 'monetisation', titre: 'Résiliations d’essai', source: 'rc', graphe: 'trial_conversion', type: 'resiliation', couleur: 'var(--rouge)',
+      pied: 'RevenueCat · essais qui ont coupé le renouvellement ÷ essais démarrés, rangés au jour d’arrivée de la personne · un jour récent bouge encore : on peut résilier jusqu’au dernier jour de l’essai · jours UTC' },
     { id: 'abonnes', section: 'monetisation', titre: 'Abonnés actifs', source: 'rc', graphe: 'actives', type: 'aire', couleur: 'var(--aqua)',
       unite: ['abonné', 'abonnés'], pied: 'RevenueCat · abonnements payants en cours, jour par jour' },
     { id: 'remboursements', section: 'monetisation', titre: 'Taux de remboursement', source: 'rc', graphe: 'refund_rate', type: 'remboursement', couleur: 'var(--rouge)',
@@ -643,6 +645,22 @@
         (nt ? '' : ' · aucun achat payant pour l’instant');
       graphe(zone, { type: 'barres', jours: jours, series: [{ nom: 'Remboursements', couleur: c.couleur, valeurs: jr.map(function (x) { return x.remb; }) }],
         bulle: function (i) { var x = jr[i]; return '<b>' + fmt(x.remb) + '</b> ' + pluriel(x.remb, ['remboursement', 'remboursements']) + ' / ' + fmt(x.trans) + ' ' + pluriel(x.trans, ['transaction', 'transactions']) + (x.trans ? ' · ' + taux(x.remb, x.trans) : ''); } });
+      return;
+    }
+
+    if (c.type === 'resiliation') {
+      var lr = lireEssais(s), je = jours.map(lr);
+      var ne = je.reduce(function (t, x) { return t + x.essais; }, 0), nres = je.reduce(function (t, x) { return t + x.resil; }, 0);
+      var npaie = je.reduce(function (t, x) { return t + x.paie; }, 0);
+      var pct = function (r, t) { return Math.round(100 * r / t) + ' %'; };
+      hero.textContent = ne ? pct(nres, ne) : '– %';
+      sous.innerHTML = fmt(nres) + ' ' + pluriel(nres, ['résiliation', 'résiliations']) + ' / ' + fmt(ne) + ' ' + pluriel(ne, ['essai', 'essais']) + ' ' + duree(c, jours) +
+        ' · <span class="hausse">' + fmt(npaie) + ' ' + pluriel(npaie, ['payant ou en route', 'payants ou en route']) + '</span>';
+      graphe(zone, { type: 'barres', empile: true, jours: jours, series: [
+        { nom: 'Vont payer ou ont payé', couleur: 'var(--aqua)', valeurs: je.map(function (x) { return x.paie; }) },
+        { nom: 'Résiliés', couleur: c.couleur, valeurs: je.map(function (x) { return x.resil; }) }],
+        bulle: function (i) { var x = je[i]; return '<b>' + fmt(x.resil) + '</b> ' + pluriel(x.resil, ['résiliation', 'résiliations']) + ' / ' + fmt(x.essais) + ' ' + pluriel(x.essais, ['essai', 'essais']) + (x.essais ? ' · ' + pct(x.resil, x.essais) : '') + ' · ' + fmt(x.paie) + ' vont payer'; } });
+      legende.innerHTML = '<span><i style="background:var(--aqua)"></i>Vont payer ou ont payé</span><span><i style="background:' + c.couleur + '"></i>Résiliés (essai en cours ou terminé sans payer)</span>';
       return;
     }
 
@@ -1282,6 +1300,22 @@
   }
 
   /**
+   * L'entonnoir des essais (26 oct.) : par jour d'arrivée, les essais démarrés, ceux qui ont payé ou
+   * vont payer (« Converted » + « Set To Convert ») et ceux qui ont résilié (« Set To Cancel » + les
+   * essais terminés sans payer, « Abandoned »). Mesures reconnues à leur nom, comme les remboursements.
+   */
+  function lireEssais(s) {
+    var noms = (s.noms || []).map(function (x) { return String(x).toLowerCase(); });
+    var i = function (re, defaut) { for (var k = 0; k < noms.length; k++) if (re.test(noms[k])) return k; return noms.length ? -1 : defaut; };
+    var iEss = i(/started trials/, 1), iConv = i(/^converted trials/, 2), iVers = i(/set to convert/, 3), iAnn = i(/set to cancel/, 4), iAband = i(/abandoned/, 6);
+    var lu = function (mm, k) { return k >= 0 ? mm[k] || 0 : 0; };
+    return function (j) {
+      var mm = s.mesures(j);
+      return { essais: lu(mm, iEss), paie: lu(mm, iConv) + lu(mm, iVers), resil: lu(mm, iAnn) + lu(mm, iAband) };
+    };
+  }
+
+  /**
    * Les sources, à partir des rapports gardés. Apple peut republier un jour dans un rapport plus
    * récent : pour chaque jour, on prend le rapport le plus récent qui le contient, sans additionner.
    */
@@ -1489,8 +1523,10 @@
         trials_new: serie(function () { return Math.round(4 + hasard() * 14); }).map(function (v, i) { return { jour: utc[i], v: v }; }),
         revenue: serie(function () { var n = Math.round(1 + hasard() * 9); return [n * 29.99 * (0.8 + hasard() * 0.3), n]; }).map(function (v, i) { return { jour: utc[i], v: v[0], n: v[1] }; }),
         customers_new: serie(function () { return Math.round(15 + hasard() * 45); }).map(function (v, i) { return { jour: utc[i], v: v }; }),
-        refund_rate: utc.map(function (j) { var t = Math.round(1 + hasard() * 9), r = hasard() < 0.12 ? 1 : 0; return { jour: j, v: 100 * r / t, n: t, m: [100 * r / t, t, r] }; })
-      }, mesures: { refund_rate: ['Refund Rate', 'Transactions', 'Refunded Transactions'] } },
+        refund_rate: utc.map(function (j) { var t = Math.round(1 + hasard() * 9), r = hasard() < 0.12 ? 1 : 0; return { jour: j, v: 100 * r / t, n: t, m: [100 * r / t, t, r] }; }),
+        trial_conversion: utc.map(function (j) { var e = Math.round(2 + hasard() * 12), a = Math.round(e * (0.25 + hasard() * 0.25)); return { jour: j, v: e * 5, m: [e * 5, e, 0, e - a, a, 0, 0] }; })
+      }, mesures: { refund_rate: ['Refund Rate', 'Transactions', 'Refunded Transactions'],
+        trial_conversion: ['New Customers', 'Started Trials', 'Converted Trials', 'Set To Convert', 'Set To Cancel', 'Inactive Trials', 'Abandoned Trials'] } },
       partages: { jours: (function () { var o = {}; jours.forEach(function (j, i) { if (i > 80) o[j] = Math.round(hasard() * 6); }); return o; })() },
       openrouter: { jour: 0.084, semaine: 0.52, mois: 1.93, total: 4.71, limite: null, reste: null }
     });
