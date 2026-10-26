@@ -216,6 +216,8 @@
     <div class="grille" id="s-parcours"></div>
     <h2 class="section">Dans l'app</h2>
     <div class="grille" id="s-usage"></div>
+    <h2 class="section">Idées de week-end · ouvertes et ajoutées</h2>
+    <div class="grille" id="s-guides"></div>
     <h2 class="section">Intelligence artificielle · appels et dépenses</h2>
     <div class="grille" id="s-ia"></div>
   </div>
@@ -1164,6 +1166,49 @@
     }
   }
 
+  /**
+   * Les idées de week-end (26 oct. 2026) : pour chaque guide, combien de personnes l'ont ouvert, puis ajouté à leurs
+   * voyages, sur 90 jours (fonction stats_guides_app, migration 20261026180000 du dépôt de l'app). Une personne ne
+   * compte qu'une fois par guide et par geste. Une simple carte, à part des autres : un tableau, pas une courbe.
+   */
+  function rendreGuides(etat) {
+    var h = '<div class="carte"><div class="tete"><strong>Guides</strong></div>';
+    if (etat.message) {
+      h += '<p class="vide" style="min-height:90px">' + esc(etat.message) + '</p>';
+    } else if (!etat.lignes.length) {
+      h += '<p class="vide" style="min-height:90px">Pas encore de chiffres : ils arrivent avec la version qui contient les idées de week-end.</p>';
+    } else {
+      var parVille = {};
+      etat.lignes.forEach(function (l) {
+        var v = parVille[l.guide] || (parVille[l.guide] = { ouvert: 0, ajoute: 0 });
+        v[l.geste] = (v[l.geste] || 0) + l.n;
+      });
+      var villes = Object.keys(parVille).sort(function (a, b) { return parVille[b].ouvert - parVille[a].ouvert; });
+      h += '<table style="width:100%;border-collapse:collapse;font-size:.9rem;margin-top:.4rem">' +
+        '<tr style="color:var(--gris);text-align:left"><th style="padding:.3rem 0">Ville</th><th>Ouverts</th><th>Ajoutés</th><th>Taux</th></tr>';
+      villes.forEach(function (ville) {
+        var v = parVille[ville];
+        var taux = v.ouvert ? Math.round((v.ajoute / v.ouvert) * 100) + ' %' : '–';
+        h += '<tr style="border-top:1px solid var(--trait)"><td style="padding:.35rem 0">' + esc(ville) + '</td><td>' + v.ouvert +
+          '</td><td>' + v.ajoute + '</td><td>' + taux + '</td></tr>';
+      });
+      h += '</table><p class="pied">90 derniers jours · une personne compte une fois par guide.</p>';
+    }
+    $('s-guides').innerHTML = h + '</div>';
+  }
+
+  async function chargerGuides() {
+    try {
+      var r = await appeler('/rest/v1/rpc/stats_guides_app', { cle: cle });
+      if (r.status === 404) { rendreGuides({ message: 'Le compteur n’est pas encore installé sur Supabase.' }); return; }
+      if (!r.ok) throw new Error();
+      var p = await r.json();
+      rendreGuides(p ? { lignes: p.lignes || [] } : { message: 'La clé n’ouvre pas les guides.' });
+    } catch (e) {
+      rendreGuides({ message: 'Les guides ne répondent pas pour l’instant.' });
+    }
+  }
+
   /** Les appels à l'IA : pour chaque jour de Paris, par origine, appels, coût, journées écrites, ratés. */
   function sourceIA(lignes) {
     var fin = jourDans('Europe/Paris'), debut = plusJours(fin, -(HISTOIRE - 1));
@@ -1341,6 +1386,7 @@
       // Le parcours et les appels à l'IA arrivent à côté, sans attendre Apple ni RevenueCat.
       chargerParcours().then(function () { CARTES.filter(function (c) { return c.source === 'parcours'; }).forEach(rendre); });
       chargerIA().then(function () { CARTES.filter(function (c) { return c.source === 'ia'; }).forEach(rendre); });
+      chargerGuides();
 
       // Les jours Apple qui manquent encore dans ce navigateur (du plus récent au plus ancien).
       var memo = memoApple(), besoin = [];
@@ -1367,6 +1413,11 @@
   // ?demo : des chiffres inventés, reconnaissables au bandeau.
   function demo() {
     $('bandeau-demo').hidden = false; $('tableau').hidden = false;
+    rendreGuides({ lignes: [
+      { guide: 'Colmar', geste: 'ouvert', n: 42 }, { guide: 'Colmar', geste: 'ajoute', n: 9 },
+      { guide: 'Strasbourg', geste: 'ouvert', n: 31 }, { guide: 'Strasbourg', geste: 'ajoute', n: 5 },
+      { guide: 'Prague', geste: 'ouvert', n: 18 }, { guide: 'Prague', geste: 'ajoute', n: 4 }
+    ] });
     var graine = 7, hasard = function () { graine = (graine * 16807) % 2147483647; return graine / 2147483647; };
     var jours = [], k;
     for (k = HISTOIRE; k >= 1; k--) jours.push(jourDans('America/Los_Angeles', k));
