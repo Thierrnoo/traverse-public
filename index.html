@@ -41,7 +41,7 @@
 <body>
 
 <h1>Politique de confidentialité de Traverse</h1>
-<p class="maj">Dernière mise à jour : 13 octobre 2026</p>
+<p class="maj">Dernière mise à jour : 26 octobre 2026</p>
 
 <p>Traverse est une application mobile qui aide à préparer un voyage : vous indiquez une destination, des dates et vos envies, et l'application vous propose un programme jour par jour.</p>
 
@@ -67,7 +67,7 @@
 <p>Si vous choisissez une photo de votre galerie comme couverture de voyage, l'application vous demande l'autorisation d'accéder à vos photos. La photo choisie <strong>reste sur votre téléphone</strong> : elle n'est ni copiée, ni envoyée, ni analysée. Traverse ne consulte pas le reste de votre galerie.</p>
 
 <h3>Les notifications</h3>
-<p>Si vous les acceptez, Traverse programme deux sortes de rappels : celui qui précède la fin de votre période d'essai, et des rappels de voyage — un mois, sept jours et la veille avant le départ, puis chaque matin du voyage. Les rappels de voyage se règlent ou se coupent dans Réglages › Notifications ; pour les créer, l'application utilise seulement le nom de la ville et les dates de vos voyages, qui restent sur votre téléphone. Ces notifications sont <strong>entièrement locales</strong> : elles sont créées et déclenchées par votre téléphone. Aucun serveur ne vous envoie de notification, et aucun identifiant de notification n'est transmis.</p>
+<p>Si vous les acceptez, Traverse programme trois sortes de rappels : celui qui précède la fin de votre période d'essai et, pendant l'essai, trois suggestions (personnaliser votre voyage, inviter un ami, découvrir des idées de week-end) ; des rappels de voyage — un mois, sept jours et la veille avant le départ, puis chaque matin du voyage ; et, le lendemain du retour, des idées de week-end. Jamais plus d'un rappel par jour. Les rappels de voyage se règlent ou se coupent dans Réglages › Notifications ; pour les créer, l'application utilise seulement le nom de la ville et les dates de vos voyages, qui restent sur votre téléphone. Ces notifications sont <strong>entièrement locales</strong> : elles sont créées et déclenchées par votre téléphone. Aucun serveur ne vous envoie de notification, et aucun identifiant de notification n'est transmis.</p>
 
 <h2>3. Ce qui part vers un serveur</h2>
 <p>Pour écrire un programme adapté à votre destination, reconnaître une ville que vous tapez, trouver un lieu que vous ajoutez vous-même, ou trouver des photos, l'application interroge un service en ligne hébergé chez <strong>Supabase</strong> (fonctions serveur exploitées pour le compte de Traverse).</p>
@@ -106,6 +106,11 @@
       <td>Savoir à quel écran les personnes s'arrêtent, pour améliorer l'application (voir « Mesure d'audience anonyme » plus bas).</td>
     </tr>
     <tr>
+      <td>Compter les idées de week-end</td>
+      <td>Le nom de la ville du guide (ex. « Colmar »), le geste (guide ouvert ou ajouté à vos voyages) et le numéro de version de l'application. Rien d'autre.</td>
+      <td>Savoir quelles idées de week-end intéressent, pour en proposer de semblables (voir « Mesure d'audience anonyme » plus bas).</td>
+    </tr>
+    <tr>
       <td>Partager un voyage (seulement si vous touchez « Partager »)</td>
       <td>Le titre du voyage, sa destination, son nombre de jours, vos envies, le rythme, le budget, le type de compagnons, le nombre de voyageurs, la langue, et les activités de chaque jour avec leurs photos.</td>
       <td>Créer le lien que vous envoyez : la personne qui l'ouvre reçoit le même voyage.</td>
@@ -140,6 +145,10 @@
 <p>Les photos de destinations et d'activités proviennent de Wikipedia et Wikimedia Commons, avec mention de leur auteur et de leur licence. Notre serveur interroge également <strong>Wikidata</strong> et Wikipedia pour savoir quels lieux d'une ville sont les plus connus, et les proposer en premier. Seuls des noms de lieux, leurs coordonnées et les fiches des marques sont transmis. La recherche est effectuée par notre serveur ; les images elles-mêmes sont ensuite téléchargées par votre téléphone depuis Wikimedia.<br>
 <a href="https://foundation.wikimedia.org/wiki/Policy:Privacy_policy" target="_blank" rel="noopener">Politique de confidentialité de Wikimedia</a></p>
 
+<h3>Open-Meteo — la météo de votre prochain voyage</h3>
+<p>Sur « Mes voyages », la carte de votre voyage en cours ou du prochain affiche le temps qu'il fait là-bas. Pour cela, votre téléphone interroge directement <strong>Open-Meteo</strong>, un service météo européen gratuit et sans compte : il envoie seulement le <strong>nom de la ville</strong>, puis ses coordonnées, pour lire le temps actuel. Aucune date, aucun identifiant, aucune position de votre téléphone n'est transmis. Comme tout service en ligne, Open-Meteo voit l'adresse IP du téléphone au moment de la demande.<br>
+<a href="https://open-meteo.com/en/terms" target="_blank" rel="noopener">Conditions et confidentialité d'Open-Meteo</a></p>
+
 <h3>Mapillary et Panoramax — photos de rue des restaurants et des boutiques</h3>
 <p>Pour montrer la devanture d'un restaurant, d'un bar ou d'une boutique, notre serveur cherche des photos prises dans la rue, sous licence libre, chez <strong>Mapillary</strong> (service de Meta Platforms) et chez <strong>Panoramax</strong> (projet ouvert porté par l'IGN et OpenStreetMap France). Seules les <strong>coordonnées du lieu</strong> sont transmises, depuis notre serveur : jamais votre position, jamais rien qui vous identifie. La photo retenue est copiée sur notre stockage et affichée avec le nom de son auteur et sa licence.<br>
 <a href="https://www.mapillary.com/privacy" target="_blank" rel="noopener">Politique de confidentialité de Mapillary</a> — <a href="https://panoramax.fr/mentions-legales" target="_blank" rel="noopener">Mentions de Panoramax</a></p>
@@ -154,6 +163,7 @@
 
 <h3>Mesure d'audience anonyme</h3>
 <p>Pour savoir où les personnes s'arrêtent entre l'ouverture de l'application et le début de l'essai, l'application compte, de façon anonyme, les étapes atteintes : chaque écran de la présentation (destination, dates, envies…), l'aperçu du Jour 1, l'offre, le bouton de l'essai touché, l'essai démarré ou la fenêtre de paiement d'Apple refermée. Pour chaque étape, elle envoie <strong>uniquement le nom de l'étape et le numéro de version de l'application</strong>, une seule fois par téléphone. Aucun identifiant, aucun compte, aucune information sur l'appareil n'est envoyé, et l'adresse IP n'est pas enregistrée : rien ne permet de relier une étape à une personne, ni deux étapes entre elles. Pour ne pas compter deux fois la même étape, l'application retient sur votre téléphone, 13 mois au plus, la liste des étapes déjà comptées ; cette liste ne quitte jamais le téléphone. Ces comptages sont enregistrés chez Supabase et servent uniquement à produire des statistiques pour améliorer l'application.</p>
+<p>De la même façon, l'application compte les idées de week-end de l'accueil : quand vous ouvrez un guide, puis quand vous l'ajoutez à vos voyages, elle envoie <strong>uniquement le nom de sa ville, le geste et le numéro de version de l'application</strong>, une seule fois par téléphone et par guide, sans aucun identifiant.</p>
 <p>Traverse ne contient <strong>aucun outil de publicité, de traçage ou de profilage</strong>, et aucun service de statistiques extérieur. Aucune donnée n'est vendue, louée ou partagée à des fins commerciales ou publicitaires.</p>
 
 <h3>Le site traverse-app.fr</h3>
