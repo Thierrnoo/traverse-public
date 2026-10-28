@@ -177,6 +177,9 @@
   .cle { max-width: 22rem; margin: 5rem auto; text-align: center; }
   .cle h1 { font-size: 1.1rem; font-weight: 600; }
   .cle p { color: var(--gris); font-size: .88rem; }
+  .gyg-saisie { display: flex; flex-wrap: wrap; gap: .5rem; margin: .5rem 0 .8rem; }
+  .gyg-saisie input { flex: 1 1 7rem; min-width: 0; font: inherit; color: var(--encre); background: var(--carte); border: 1px solid var(--grille); border-radius: 8px; padding: .45rem .55rem; color-scheme: dark; }
+  .gyg-saisie button { flex: 0 0 auto; font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: .45rem .9rem; background: var(--accent); color: #fff; cursor: pointer; }
   .cle input { width: 100%; font: inherit; padding: .75rem .9rem; border-radius: 12px; border: 1px solid var(--grille); background: var(--carte); color: var(--encre); margin: .8rem 0; }
   .cle button { width: 100%; font: inherit; font-weight: 600; padding: .75rem; border-radius: 12px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
   .erreur { color: var(--baisse); font-size: .86rem; }
@@ -220,6 +223,8 @@
     <div class="grille" id="s-guides"></div>
     <h2 class="section">Résiliations · ce qui a manqué</h2>
     <div class="grille" id="s-resiliations"></div>
+    <h2 class="section">GetYourGuide · commissions</h2>
+    <div class="grille" id="s-gyg"></div>
     <h2 class="section">Intelligence artificielle · appels et dépenses</h2>
     <div class="grille" id="s-ia"></div>
   </div>
@@ -1294,6 +1299,88 @@
     }
   }
 
+  /**
+   * Les commissions GetYourGuide (28 oct. 2026). GetYourGuide n'ouvre aucun accès automatique aux commissions de ses
+   * affiliés : chaque mois, Thierno recopie ici le montant lu dans son espace partenaire (fonction
+   * noter_commission_gyg), et l'app compte toute seule, sans rien savoir des personnes, les « Voir les billets »
+   * touchés dans l'encadré « À réserver avant de partir » (stats_commissions_gyg, migration 20261028180000 du dépôt de
+   * l'app). On y lit les billets ouverts, les réservations, la commission et ce que rapporte un billet ouvert.
+   */
+  var euros = function (n) { return Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; };
+  var nomMois = function (m) {
+    var p = m.split('-');
+    return new Date(Number(p[0]), Number(p[1]) - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  };
+  var moisDernier = function () {
+    var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  };
+  function rendreGYG(etat) {
+    var h = '<div class="carte"><div class="tete"><strong>Commissions GetYourGuide</strong></div>';
+    if (etat.message) {
+      $('s-gyg').innerHTML = h + '<p class="vide" style="min-height:90px">' + esc(etat.message) + '</p></div>';
+      return;
+    }
+    var total = etat.mois.reduce(function (t, m) { return t + (m.montant ? Number(m.montant) : 0); }, 0);
+    h += '<p style="margin:.3rem 0 0;font-size:1.6rem;font-weight:700">' + euros(total) + '</p>' +
+      '<p class="pied" style="margin-top:0">sur les 13 derniers mois · 8 % de commission</p>';
+    h += '<form class="gyg-saisie" id="gyg-form"' + (etat.demo ? ' data-demo' : '') + '>' +
+      '<input type="month" id="gyg-mois" value="' + moisDernier() + '" aria-label="Mois">' +
+      '<input type="text" inputmode="decimal" id="gyg-montant" placeholder="Commission (€)" aria-label="Commission en euros">' +
+      '<input type="text" inputmode="numeric" id="gyg-resa" placeholder="Réservations" aria-label="Réservations">' +
+      '<button type="submit">Enregistrer</button></form><p class="pied" id="gyg-retour" style="margin-top:0"></p>';
+    h += '<table style="width:100%;border-collapse:collapse;font-size:.9rem;margin-top:.2rem">' +
+      '<tr style="color:var(--gris);text-align:left"><th style="padding:.3rem 0">Mois</th><th>Billets ouverts</th><th>Réservations</th><th>Commission</th><th>Par billet</th></tr>';
+    etat.mois.filter(function (m) { return m.billets || m.montant != null; }).forEach(function (m) {
+      var montant = m.montant != null ? Number(m.montant) : null;
+      var parBillet = montant != null && m.billets ? euros(montant / m.billets) : '–';
+      h += '<tr style="border-top:1px solid var(--trait)"><td style="padding:.35rem 0">' + esc(nomMois(m.mois)) + '</td><td>' + m.billets +
+        '</td><td>' + (montant != null ? m.reservations : '–') + '</td><td>' + (montant != null ? euros(montant) : '<span style="color:var(--gris)">à saisir</span>') +
+        '</td><td>' + parBillet + '</td></tr>';
+    });
+    h += '</table>';
+    if (etat.lieux.length) {
+      h += '<p class="pied" style="margin-top:.6rem">Billets les plus ouverts (90 jours) :</p><ul style="margin:.3rem 0 0;padding-left:1.1rem;font-size:.88rem">';
+      etat.lieux.forEach(function (l) {
+        h += '<li style="margin:.2rem 0">' + esc(l.lieu) + ' <span style="color:var(--gris)">· ' + esc(l.ville) + ' · ' + l.n + '</span></li>';
+      });
+      h += '</ul>';
+    }
+    h += '<p class="pied">Le montant se lit dans ton espace partenaire GetYourGuide (Statistiques) ; un billet ouvert compte une fois par téléphone et par lieu.</p>';
+    $('s-gyg').innerHTML = h + '</div>';
+
+    $('gyg-form').addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var retour = $('gyg-retour');
+      var mois = $('gyg-mois').value;
+      var montant = parseFloat(String($('gyg-montant').value).replace(/\s/g, '').replace(',', '.'));
+      var resa = parseInt($('gyg-resa').value, 10) || 0;
+      if (!/^\d{4}-\d{2}$/.test(mois) || !(montant >= 0)) { retour.textContent = 'Indique le mois et le montant (par exemple 12,40).'; return; }
+      if (this.hasAttribute('data-demo')) { retour.textContent = 'Exemple : rien n’est enregistré.'; return; }
+      retour.textContent = 'Enregistrement…';
+      try {
+        var r = await appeler('/rest/v1/rpc/noter_commission_gyg', { cle: cle, mois: mois + '-01', montant: montant, reservations: resa });
+        var ok = r.ok && (await r.json()) === true;
+        if (!ok) { retour.textContent = 'Pas enregistré : la clé ou le montant ne va pas.'; return; }
+        chargerGYG();
+      } catch (e) {
+        retour.textContent = 'Pas enregistré : Supabase ne répond pas pour l’instant.';
+      }
+    });
+  }
+
+  async function chargerGYG() {
+    try {
+      var r = await appeler('/rest/v1/rpc/stats_commissions_gyg', { cle: cle });
+      if (r.status === 404) { rendreGYG({ message: 'La section n’est pas encore installée sur Supabase.' }); return; }
+      if (!r.ok) throw new Error();
+      var p = await r.json();
+      rendreGYG(p ? { mois: p.mois || [], lieux: p.lieux || [] } : { message: 'La clé n’ouvre pas les commissions.' });
+    } catch (e) {
+      rendreGYG({ message: 'Les commissions ne répondent pas pour l’instant.' });
+    }
+  }
+
   /** Les appels à l'IA : pour chaque jour de Paris, par origine, appels, coût, journées écrites, ratés. */
   function sourceIA(lignes) {
     var fin = jourDans('Europe/Paris'), debut = plusJours(fin, -(HISTOIRE - 1));
@@ -1489,6 +1576,7 @@
       chargerIA().then(function () { CARTES.filter(function (c) { return c.source === 'ia'; }).forEach(rendre); });
       chargerGuides();
       chargerResiliations();
+      chargerGYG();
 
       // Les jours Apple qui manquent encore dans ce navigateur (du plus récent au plus ancien).
       var memo = memoApple(), besoin = [];
@@ -1527,6 +1615,15 @@
     ], autres: [
       { le: '2026-10-27T18:12:00Z', detail: 'Je voulais juste voir à quoi ressemblait le voyage', essai: true },
       { le: '2026-10-26T09:40:00Z', detail: 'Pas de version Android pour mon copain', essai: true }
+    ] });
+    rendreGYG({ demo: true, mois: [
+      { mois: '2026-12', billets: 41, montant: null, reservations: 0 },
+      { mois: '2026-11', billets: 96, montant: 38.4, reservations: 7 },
+      { mois: '2026-10', billets: 52, montant: 17.6, reservations: 3 }
+    ], lieux: [
+      { ville: 'Londres', lieu: 'Warner Bros. Studio Tour London', n: 28 },
+      { ville: 'Grenade', lieu: 'Alhambra', n: 19 },
+      { ville: 'Paris', lieu: 'Musée du Louvre', n: 12 }
     ] });
     var graine = 7, hasard = function () { graine = (graine * 16807) % 2147483647; return graine / 2147483647; };
     var jours = [], k;
