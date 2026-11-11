@@ -406,7 +406,13 @@
   /** Le reste, rangé dans « Autres chiffres ». */
   var A_COTE = [
     ['offre', 'Offre vue, où que ce soit'], ['abonne', 'Abonnement pris sans essai'], ['erreur', 'Achat en échec'],
-    ['rattrapage', 'Offre de rattrapage vue'], ['avis', 'Fenêtre d’avis d’Apple demandée']
+    ['rattrapage', 'Offre de rattrapage vue'], ['avis', 'Fenêtre d’avis d’Apple demandée'],
+    // Apres une resiliation d'essai, vers le 5e jour (11 nov. 2026) : une moitie voit « 7 jours de plus »,
+    // l'autre « 1er mois à 2,99 € » ; on gardera celle qui fait revenir le plus de monde.
+    ['reconquete-vue-7j', 'Après résiliation : « 7 jours de plus » vue'],
+    ['reconquete-prise-7j', 'Après résiliation : « 7 jours de plus » prise'],
+    ['reconquete-vue-mois', 'Après résiliation : « 1er mois à 2,99 € » vue'],
+    ['reconquete-prise-mois', 'Après résiliation : « 1er mois à 2,99 € » prise']
   ];
   var cle = '';
 
