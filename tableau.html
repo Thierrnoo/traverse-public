@@ -414,6 +414,13 @@
     ['reconquete-vue-mois', 'Après résiliation : « 1er mois à 2,99 € » vue'],
     ['reconquete-prise-mois', 'Après résiliation : « 1er mois à 2,99 € » prise']
   ];
+  /** Mon monde, Explorer, les souvenirs et les hotels (13 nov. 2026) : une fois par telephone, donc des personnes. */
+  var MONDE = [
+    ['explorer', 'Explorer ouvert'], ['pays-explorer', 'Fiche d’un pays d’Explorer ouverte'],
+    ['monde', 'Mon monde ouvert'], ['monde-pays', 'Un pays colorié (visité ou envie)'], ['passeport', 'Passeport ouvert'],
+    ['photos', 'Photos souvenirs ajoutées'], ['souvenir', 'Souvenir écrit'], ['story', 'Souvenirs regardés (story)'],
+    ['partage-passeport', 'Passeport partagé'], ['hotels', 'Hôtels ouverts (Stay22)']
+  ];
   var cle = '';
 
   // Une source de la page, ramenée à une même forme : jours de debut à fin, valeur(j).
@@ -975,6 +982,10 @@
           return ligne('<i class="num">' + (i + 1) + '</i>' + esc(e[1]), anciens[i], anciens[0], e[0] === 'essai' ? 'var(--aqua)' : 'var(--bleu)', '', i === pireA ? perteNote(perteA) : '');
         }).join('') + '</ul></details>';
     }
+
+    // Mon monde, Explorer, les souvenirs et les hotels (13 nov. 2026) : deplie par defaut.
+    h += '<details class="repli" data-repli="monde"' + (st.monde !== false ? ' open' : '') + '><summary>Mon monde, Explorer, souvenirs et hôtels</summary><ul class="entonnoir">' +
+      MONDE.map(function (e) { return ligne(esc(e[1]), compte(e[0], toutes), depart, 'var(--aqua)'); }).join('') + '</ul></details>';
 
     // Les autres chiffres, replies aussi.
     h += '<details class="repli" data-repli="autres"' + (st.autres ? ' open' : '') + '><summary>Autres chiffres</summary><ul class="entonnoir">' +
@@ -1669,9 +1680,13 @@
         vu.offre = vu.paywall + 1; vu.rattrapage = Math.round((vu.paywall - vu.essai) * 0.9); vu.fin = vu.paywall;
       }
       vu.annule = vu.bouton - vu.essai; vu.erreur = 0; vu.avis = Math.round(vu.essai * 0.8);
+      // Mon monde, Explorer, souvenirs, hotels : des chiffres inventes pour la demo.
+      vu.explorer = Math.round(vu.essai * 1.6); vu['pays-explorer'] = Math.round(vu.essai * 1.1); vu.monde = Math.round(vu.essai * 1.3);
+      vu['monde-pays'] = Math.round(vu.essai * 0.9); vu.passeport = Math.round(vu.essai * 0.6); vu.photos = Math.round(vu.essai * 0.25);
+      vu.souvenir = Math.round(vu.essai * 0.2); vu.story = Math.round(vu.essai * 0.3); vu['partage-passeport'] = Math.round(vu.essai * 0.1); vu.hotels = Math.round(vu.essai * 0.5);
       var vues = {};
       var branches = [].concat.apply([], ETAPES_NOUVEL.map(function (p) { return p[2] || []; }));
-      ETAPES.concat(ETAPES_NOUVEL, branches, A_COTE).forEach(function (e) {
+      ETAPES.concat(ETAPES_NOUVEL, branches, A_COTE, MONDE).forEach(function (e) {
         if (vues[e[0]] || !(vu[e[0]] > 0)) return;
         vues[e[0]] = true;
         lignesP.push({ jour: j, etape: e[0], version: v, n: vu[e[0]] });
