@@ -46,6 +46,7 @@
   .couverture img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
   .surtitre { margin: 1.1rem 0 0; font-size: .78rem; font-weight: 700; letter-spacing: .08em; color: var(--corail-fonce); }
+  .photo-auteur { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 8px; border: 2px solid var(--corail-fonce); }
   h1 { font-size: 1.9rem; line-height: 1.15; letter-spacing: -.02em; margin: .25rem 0 .3rem; overflow-wrap: anywhere; }
   .resume { color: var(--gris); margin: 0 0 1.2rem; }
 
@@ -252,7 +253,22 @@
     var auteur = voyage.auteur && typeof voyage.auteur === 'object' ? voyage.auteur : null;
     var prenom = auteur && typeof auteur.prenom === 'string' ? auteur.prenom.trim().slice(0, 24) : '';
     var avatar = auteur && typeof auteur.avatar === 'string' ? auteur.avatar.trim().slice(0, 8) : '';
-    $('surtitre').textContent = prenom ? (avatar ? avatar + ' ' : '') + t.invite(prenom.toUpperCase()) : t.surtitre;
+    // Sa photo de profil, quand elle est partie avec le voyage (14 nov. 2026) : à la place de l'emoji.
+    var photo = typeof voyage.auteurPhoto === 'string' && /^(https:\/\/|data:image\/)/.test(voyage.auteurPhoto) ? voyage.auteurPhoto : '';
+    var sur = $('surtitre');
+    sur.textContent = '';
+    if (prenom && photo) {
+      var img = document.createElement('img');
+      img.src = photo;
+      img.alt = '';
+      img.referrerPolicy = 'no-referrer';
+      img.className = 'photo-auteur';
+      img.onerror = function () { img.remove(); sur.insertBefore(document.createTextNode(avatar ? avatar + ' ' : ''), sur.firstChild); };
+      sur.appendChild(img);
+      sur.appendChild(document.createTextNode(t.invite(prenom.toUpperCase())));
+    } else {
+      sur.textContent = prenom ? (avatar ? avatar + ' ' : '') + t.invite(prenom.toUpperCase()) : t.surtitre;
+    }
     $('titre').textContent = voyage.titre || ville;
     $('resume').textContent = [ville, t.jours(jours), t.activites(total)].join(' · ');
 
